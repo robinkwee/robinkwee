@@ -3,9 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock 'server-only' so it doesn't throw in test environment
 vi.mock('server-only', () => ({}));
 
-// Mock @ai-sdk/openai
-vi.mock('@ai-sdk/openai', () => ({
-  openai: vi.fn(() => 'mock-model'),
+// Mock @ai-sdk/anthropic
+vi.mock('@ai-sdk/anthropic', () => ({
+  anthropic: vi.fn(() => 'mock-model'),
 }));
 
 // Mock the streamText function from 'ai' (v4 API)

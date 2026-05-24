@@ -1,8 +1,8 @@
-import { openai } from '@ai-sdk/openai';
+import { anthropic } from '@ai-sdk/anthropic';
 import { streamText, type CoreMessage } from 'ai';
 import { systemPrompt } from '@/lib/system-prompt';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   let body: { messages?: unknown[] };
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
   try {
     const result = streamText({
-      model: openai('gpt-4o-mini'),
+      model: anthropic('claude-haiku-4-5'),
       system: systemPrompt,
       messages: trimmed,
       maxTokens: 300,
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
 
     return result.toDataStreamResponse();
   } catch (err) {
-    console.error('OpenAI error:', err);
+    console.error('Chat error:', err);
     return new Response(
       JSON.stringify({ error: "Something went wrong. Try asking again." }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
