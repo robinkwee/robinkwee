@@ -201,6 +201,24 @@ export default function ProfilePage({ recentPosts }: Props) {
           ))}
         </div>
 
+        {/* Proof of Work */}
+        <Link
+          href="/log"
+          className="flex items-center justify-between w-full bg-[#111] hover:bg-[#181818] border border-gray-800 hover:border-gray-700 rounded-xl px-4 py-3.5 transition-all group mb-8"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex gap-0.5">
+              <span className="w-2 h-2 rounded-sm bg-violet-400 opacity-80" />
+              <span className="w-2 h-2 rounded-sm bg-emerald-400 opacity-80" />
+              <span className="w-2 h-2 rounded-sm bg-amber-400 opacity-80" />
+            </div>
+            <span className="text-sm font-medium text-white">365 days of showing up</span>
+          </div>
+          <svg className="w-4 h-4 text-gray-700 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
+
         {/* Recent Writing */}
         {recentPosts.length > 0 && (
           <div className="mb-8">
