@@ -17,6 +17,12 @@ const VENTURES = [
     label: 'DigitalNuvo',
     desc: 'AI Systems That Run Your Practice',
     href: 'https://digitalnuvo.com/',
+    tag: 'Ecommerce',
+  },
+  {
+    label: 'GENAIO',
+    desc: 'The AI translation layer for Filipino business',
+    href: 'https://genaio.org',
     tag: 'AI',
   },
   {
@@ -41,6 +47,7 @@ const VENTURES = [
 
 const TAG_COLORS: Record<string, string> = {
   AI: 'bg-violet-900/60 text-violet-300 border-violet-800/50',
+  Ecommerce: 'bg-blue-900/60 text-blue-300 border-blue-800/50',
   Padel: 'bg-emerald-900/60 text-emerald-300 border-emerald-800/50',
   Health: 'bg-amber-900/60 text-amber-300 border-amber-800/50',
 };
