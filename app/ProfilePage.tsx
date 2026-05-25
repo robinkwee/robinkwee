@@ -205,19 +205,33 @@ export default function ProfilePage({ recentPosts }: Props) {
           ))}
         </div>
 
-        {/* AI Avatar */}
-        <Link
-          href="/avatar"
-          className="flex items-center justify-between w-full bg-[#111] hover:bg-[#181818] border border-gray-800 hover:border-gray-700 rounded-xl px-4 py-3.5 transition-all group mb-3"
-        >
-          <div className="flex items-center gap-3">
-            <img src="/avatar.jpg" alt="" className="w-6 h-6 rounded-full object-cover opacity-80" />
-            <span className="text-sm font-medium text-white">Talk to my AI avatar</span>
-          </div>
-          <svg className="w-4 h-4 text-gray-700 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-          </svg>
-        </Link>
+        {/* AI demos */}
+        <div className="flex gap-2 mb-3">
+          <Link
+            href="/avatar"
+            className="flex-1 flex items-center justify-between bg-[#111] hover:bg-[#181818] border border-gray-800 hover:border-gray-700 rounded-xl px-3 py-3 transition-all group"
+          >
+            <div className="flex items-center gap-2">
+              <img src="/avatar.jpg" alt="" className="w-5 h-5 rounded-full object-cover opacity-80" />
+              <span className="text-xs font-medium text-white">AI avatar</span>
+            </div>
+            <svg className="w-3 h-3 text-gray-700 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+          <Link
+            href="/call"
+            className="flex-1 flex items-center justify-between bg-[#111] hover:bg-[#181818] border border-gray-800 hover:border-gray-700 rounded-xl px-3 py-3 transition-all group"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm">📞</span>
+              <span className="text-xs font-medium text-white">Call agent</span>
+            </div>
+            <svg className="w-3 h-3 text-gray-700 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
 
         {/* Proof of Work */}
         <Link
