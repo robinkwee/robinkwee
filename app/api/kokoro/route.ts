@@ -1,93 +1,106 @@
+import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
+
 export const runtime = 'nodejs';
+export const maxDuration = 30;
 
-// Server-side TTS cascade: try human-sounding models first, fall back to reliable ones.
-// All free via HF Inference API. Returns audio/wav binary on success.
+// Microsoft Edge TTS (Azure Neural Voices) — free, no API key, ~300ms latency.
+// Aria is Microsoft's call-center-tuned voice.
+// HF cascade kept as fallback if Edge endpoint is ever unreachable.
 
-const MODELS = [
-  // Kokoro: best human quality but may not be on standard inference API
-  { id: 'hexgrad/Kokoro-82M', useVoice: true, name: 'kokoro' },
-  // MMS-TTS: reliable Facebook TTS, decent quality, always works on HF free
-  { id: 'facebook/mms-tts-eng', useVoice: false, name: 'mms' },
-  // SpeechT5: Microsoft's natural-sounding TTS
-  { id: 'microsoft/speecht5_tts', useVoice: false, name: 'speecht5' },
+const EDGE_VOICE = 'en-US-AriaNeural';
+
+const HF_MODELS = [
+  { id: 'facebook/mms-tts-eng', name: 'mms' },
+  { id: 'microsoft/speecht5_tts', name: 'speecht5' },
 ];
 
-export async function POST(req: Request) {
-  const hfToken = process.env.HF_TOKEN;
-
-  if (!hfToken) {
-    return new Response(JSON.stringify({ error: 'NO_KEY' }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  let text: string;
-  let voice: string;
+async function tryEdgeTTS(text: string): Promise<Buffer | null> {
   try {
-    ({ text, voice = 'af_heart' } = await req.json());
+    const tts = new MsEdgeTTS();
+    await tts.setMetadata(EDGE_VOICE, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+    const { audioStream } = tts.toStream(text);
+
+    const chunks: Buffer[] = [];
+    return await new Promise<Buffer | null>((resolve) => {
+      const timeout = setTimeout(() => resolve(null), 12000);
+      audioStream.on('data', (chunk: Buffer) => chunks.push(chunk));
+      audioStream.on('end', () => {
+        clearTimeout(timeout);
+        resolve(Buffer.concat(chunks));
+      });
+      audioStream.on('error', () => {
+        clearTimeout(timeout);
+        resolve(null);
+      });
+    });
+  } catch (err) {
+    console.log('[tts] edge failed:', err);
+    return null;
+  }
+}
+
+async function tryHF(text: string, hfToken: string): Promise<{ audio: ArrayBuffer; contentType: string; name: string } | null> {
+  for (const model of HF_MODELS) {
+    try {
+      const res = await fetch(
+        `https://api-inference.huggingface.co/models/${model.id}`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inputs: text }),
+        }
+      );
+      const ct = res.headers.get('content-type') ?? '';
+      if (!res.ok || ct.includes('application/json')) {
+        console.log(`[tts] ${model.name} skipped (${res.status} ${ct})`);
+        continue;
+      }
+      const audio = await res.arrayBuffer();
+      return { audio, contentType: ct || 'audio/wav', name: model.name };
+    } catch (err) {
+      console.log(`[tts] ${model.name} threw:`, err);
+    }
+  }
+  return null;
+}
+
+export async function POST(req: Request) {
+  let text: string;
+  try {
+    ({ text } = await req.json());
     if (!text?.trim()) throw new Error('empty');
   } catch {
     return new Response(JSON.stringify({ error: 'invalid body' }), { status: 400 });
   }
 
-  for (const model of MODELS) {
-    const body: Record<string, unknown> = { inputs: text };
-    if (model.useVoice) body.parameters = { voice };
+  // 1. Edge TTS (Aria Neural) — primary
+  const edgeAudio = await tryEdgeTTS(text);
+  if (edgeAudio) {
+    return new Response(new Uint8Array(edgeAudio), {
+      headers: {
+        'Content-Type': 'audio/mpeg',
+        'X-TTS-Model': 'aria-neural',
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
 
-    try {
-      const hfRes = await fetch(
-        `https://api-inference.huggingface.co/models/${model.id}`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${hfToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body),
-        }
-      );
-
-      const contentType = hfRes.headers.get('content-type') ?? '';
-
-      // 503 cold-start: model is loading. Skip and try next model (no point waiting 20s
-      // for Kokoro if MMS-TTS is warm and ready).
-      if (hfRes.status === 503) {
-        console.log(`[tts] ${model.name} cold-starting, trying next`);
-        continue;
-      }
-
-      // Non-200: try next model
-      if (!hfRes.ok) {
-        const errText = await hfRes.text().catch(() => '');
-        console.log(`[tts] ${model.name} failed ${hfRes.status}: ${errText.slice(0, 200)}`);
-        continue;
-      }
-
-      // Got JSON instead of audio = error response (model unsupported, etc)
-      if (contentType.includes('application/json')) {
-        const errBody = await hfRes.json().catch(() => ({}));
-        console.log(`[tts] ${model.name} returned JSON:`, errBody);
-        continue;
-      }
-
-      // Got audio - return it
-      const audio = await hfRes.arrayBuffer();
-      console.log(`[tts] ${model.name} succeeded (${audio.byteLength} bytes, ${contentType})`);
-      return new Response(audio, {
+  // 2. HF cascade fallback (only if HF_TOKEN present)
+  const hfToken = process.env.HF_TOKEN;
+  if (hfToken) {
+    const hfResult = await tryHF(text, hfToken);
+    if (hfResult) {
+      return new Response(hfResult.audio, {
         headers: {
-          'Content-Type': contentType || 'audio/wav',
-          'X-TTS-Model': model.name,
+          'Content-Type': hfResult.contentType,
+          'X-TTS-Model': hfResult.name,
           'Cache-Control': 'no-store',
         },
       });
-    } catch (err) {
-      console.log(`[tts] ${model.name} threw:`, err);
-      continue;
     }
   }
 
-  // All models failed
+  // 3. Nothing worked — client falls back to Web Speech
   return new Response(JSON.stringify({ error: 'all_tts_failed' }), {
     status: 502,
     headers: { 'Content-Type': 'application/json' },
