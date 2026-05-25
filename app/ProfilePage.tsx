@@ -121,9 +121,13 @@ export default function ProfilePage({ recentPosts }: Props) {
 
         {/* Avatar & name */}
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 border border-gray-700 flex items-center justify-center text-lg font-medium text-white mb-4 select-none">
-            RK
-          </div>
+          <img
+            src="/avatar.jpg"
+            alt="Robin Kwee"
+            width={80}
+            height={80}
+            className="w-20 h-20 rounded-full object-cover border border-gray-700 mb-4"
+          />
           <h1 className="text-xl font-semibold tracking-tight mb-1">Robin Kwee</h1>
           <p className="text-gray-500 text-xs mb-2">🇵🇭 Philippines</p>
           <p className="text-gray-500 text-xs tracking-wide">
@@ -200,6 +204,20 @@ export default function ProfilePage({ recentPosts }: Props) {
             </a>
           ))}
         </div>
+
+        {/* AI Avatar */}
+        <Link
+          href="/avatar"
+          className="flex items-center justify-between w-full bg-[#111] hover:bg-[#181818] border border-gray-800 hover:border-gray-700 rounded-xl px-4 py-3.5 transition-all group mb-3"
+        >
+          <div className="flex items-center gap-3">
+            <img src="/avatar.jpg" alt="" className="w-6 h-6 rounded-full object-cover opacity-80" />
+            <span className="text-sm font-medium text-white">Talk to my AI avatar</span>
+          </div>
+          <svg className="w-4 h-4 text-gray-700 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
 
         {/* Proof of Work */}
         <Link
