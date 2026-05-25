@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 type Phase = 'ringing' | 'connecting' | 'active' | 'ended';
 type Message = { role: 'user' | 'assistant'; content: string };
 
-const GREETING = "Hi, thanks for calling Robin Kwee's office, this is Aria — how can I help you today?";
+const GREETING = "Hi, this is Aria from Robin Kwee's office — I can book you a call with Robin. What's your name?";
 
 function useCallTimer(active: boolean) {
   const [secs, setSecs] = useState(0);
