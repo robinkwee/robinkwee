@@ -17,6 +17,12 @@ const VENTURES = [
     label: 'DigitalNuvo',
     desc: 'AI Systems That Run Your Practice',
     href: 'https://digitalnuvo.com/',
+    tag: 'Ecommerce',
+  },
+  {
+    label: 'GENAIO',
+    desc: 'The AI translation layer for Filipino business',
+    href: 'https://genaio.org',
     tag: 'AI',
   },
   {
@@ -41,6 +47,7 @@ const VENTURES = [
 
 const TAG_COLORS: Record<string, string> = {
   AI: 'bg-violet-900/60 text-violet-300 border-violet-800/50',
+  Ecommerce: 'bg-blue-900/60 text-blue-300 border-blue-800/50',
   Padel: 'bg-emerald-900/60 text-emerald-300 border-emerald-800/50',
   Health: 'bg-amber-900/60 text-amber-300 border-amber-800/50',
 };
@@ -219,20 +226,6 @@ export default function ProfilePage({ recentPosts }: Props) {
           </div>
           <svg className="w-4 h-4 text-emerald-100 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </Link>
-
-        {/* Secondary: AI avatar demo */}
-        <Link
-          href="/avatar"
-          className="flex items-center justify-between w-full bg-[#111] hover:bg-[#181818] border border-gray-800 hover:border-gray-700 rounded-xl px-4 py-3 transition-all group mb-3"
-        >
-          <div className="flex items-center gap-3">
-            <img src="/avatar.jpg" alt="" className="w-5 h-5 rounded-full object-cover opacity-80" />
-            <span className="text-xs font-medium text-white">Talk to my AI avatar</span>
-          </div>
-          <svg className="w-3 h-3 text-gray-700 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
           </svg>
         </Link>
 

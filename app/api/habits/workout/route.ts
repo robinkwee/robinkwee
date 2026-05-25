@@ -6,8 +6,9 @@ export const runtime = 'nodejs';
 export async function POST(req: Request) {
   const auth = req.headers.get('authorization') ?? '';
   const secret = process.env.WORKOUT_LOG_SECRET;
+  console.log('auth check — secret present:', !!secret, 'secret prefix:', secret?.slice(0, 6));
   if (!secret || auth !== `Bearer ${secret}`) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    return new Response(JSON.stringify({ error: 'Unauthorized', debug: { secretPresent: !!secret } }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
     });
