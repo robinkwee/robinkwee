@@ -19,6 +19,32 @@ function useCallTimer(active: boolean) {
   return `${m}:${s}`;
 }
 
+// Pick the most natural-sounding system voice available
+function pickBestVoice(): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+
+  // Priority: Microsoft "Online (Natural)" > Apple premium > Google > anything en-US
+  const preferences = [
+    /Microsoft Aria.*Natural/i,
+    /Microsoft Jenny.*Natural/i,
+    /Microsoft Sonia.*Natural/i,
+    /Microsoft .*Online \(Natural\)/i,
+    /Samantha/i,           // Apple, very natural female
+    /Karen/i,              // Apple AU, natural
+    /Google US English/i,  // Chrome, decent
+    /Microsoft Aria/i,
+    /Microsoft Zira/i,
+  ];
+
+  for (const pattern of preferences) {
+    const match = voices.find(v => pattern.test(v.name));
+    if (match) return match;
+  }
+
+  return voices.find(v => v.lang === 'en-US') ?? voices[0];
+}
+
 export default function CallPage() {
   const [phase, setPhase] = useState<Phase>('ringing');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -26,102 +52,86 @@ export default function CallPage() {
   const [agentText, setAgentText] = useState('');
   const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [kokoroReady, setKokoroReady] = useState<boolean | null>(null);
-  const [modelLoading, setModelLoading] = useState(false);
+  const [voiceLabel, setVoiceLabel] = useState<string>('');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recoRef = useRef<any>(null);
+  const transcriptRef = useRef('');
   const processingRef = useRef(false);
   const callTimer = useCallTimer(phase === 'active');
 
-  // Probe Kokoro on mount
+  // Pre-load voices (Web Speech needs this triggered)
   useEffect(() => {
-    fetch('/api/kokoro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: '' }),
-    }).then(r => setKokoroReady(r.status !== 503))
-      .catch(() => setKokoroReady(false));
+    if (typeof window === 'undefined') return;
+    window.speechSynthesis?.getVoices();
+    const handler = () => window.speechSynthesis.getVoices();
+    window.speechSynthesis?.addEventListener('voiceschanged', handler);
+    return () => window.speechSynthesis?.removeEventListener('voiceschanged', handler);
   }, []);
 
   const stopListening = useCallback(() => {
-    recoRef.current?.stop();
+    try { recoRef.current?.stop(); } catch { /* already stopped */ }
     setIsListening(false);
   }, []);
 
-  const startListening = useCallback(() => {
-    if (isMuted || isAgentSpeaking) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!SR) return;
+  const speakHF = useCallback(async (text: string): Promise<void> => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
 
-    const reco = new SR();
-    reco.continuous = false;
-    reco.interimResults = true;
-    reco.lang = 'en-US';
-    recoRef.current = reco;
+    try {
+      const res = await fetch('/api/kokoro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reco.onresult = (e: any) => {
-      const interim = Array.from(e.results).map((r: any) => r[0].transcript).join('');
-      setTranscript(interim);
-    };
-    reco.onend = () => {
-      setIsListening(false);
-      const final = recoRef.current ? transcript : '';
-      if (final.trim() && !processingRef.current) {
-        sendUserMessage(final.trim());
-      }
-    };
-    reco.onerror = () => setIsListening(false);
-    reco.start();
-    setIsListening(true);
-    setTranscript('');
-  }, [isMuted, isAgentSpeaking, transcript]); // eslint-disable-line
+      if (!res.ok) throw new Error(`hf_${res.status}`);
+      const ct = res.headers.get('content-type') ?? '';
+      if (!ct.startsWith('audio/')) throw new Error('not_audio');
 
-  const speakKokoro = useCallback(async (text: string): Promise<void> => {
-    const res = await fetch('/api/kokoro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice: 'af_heart' }),
-    });
+      const modelUsed = res.headers.get('X-TTS-Model') ?? 'hf';
+      setVoiceLabel(modelUsed);
 
-    if (res.status === 503) {
-      const data = await res.json().catch(() => ({}));
-      if ((data as { error?: string }).error === 'MODEL_LOADING') {
-        setModelLoading(true);
-        const wait = ((data as { estimated_time?: number }).estimated_time ?? 20) * 1000;
-        await new Promise(r => setTimeout(r, wait + 2000));
-        setModelLoading(false);
-        return speakKokoro(text); // retry once
-      }
-      throw new Error('kokoro_unavailable');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+
+      return new Promise<void>((resolve, reject) => {
+        audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+        audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error('playback')); };
+        audio.play().catch(reject);
+      });
+    } catch (err) {
+      clearTimeout(timeout);
+      throw err;
     }
-    if (!res.ok) throw new Error('tts_error');
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audioRef.current = audio;
-
-    return new Promise((resolve) => {
-      audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-      audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-      audio.play().catch(() => resolve());
-    });
   }, []);
 
   const speakWebSpeech = useCallback((text: string): Promise<void> => {
     return new Promise((resolve) => {
+      if (typeof window === 'undefined' || !window.speechSynthesis) { resolve(); return; }
       window.speechSynthesis.cancel();
+
       const u = new SpeechSynthesisUtterance(text);
-      u.rate = 0.92; u.pitch = 1.05; u.volume = 1;
-      const voices = window.speechSynthesis.getVoices();
-      const pick = voices.find(v => v.name.includes('Samantha') || v.name.includes('Karen') || v.name.includes('Google US English') || (v.lang === 'en-US' && v.localService));
-      if (pick) u.voice = pick;
+      u.rate = 1.0;
+      u.pitch = 1.0;
+      u.volume = 1;
+
+      const voice = pickBestVoice();
+      if (voice) {
+        u.voice = voice;
+        u.lang = voice.lang;
+        setVoiceLabel(voice.name.replace(/Microsoft|Online|\(Natural\)/g, '').trim() || 'browser');
+      } else {
+        setVoiceLabel('browser');
+      }
+
       u.onend = () => resolve();
       u.onerror = () => resolve();
       window.speechSynthesis.speak(u);
@@ -131,21 +141,33 @@ export default function CallPage() {
   const speak = useCallback(async (text: string) => {
     setIsAgentSpeaking(true);
     stopListening();
+
+    let played = false;
     try {
-      if (kokoroReady) {
-        await speakKokoro(text);
-      } else {
-        await speakWebSpeech(text);
-      }
-    } finally {
-      setIsAgentSpeaking(false);
+      await speakHF(text);
+      played = true;
+    } catch (err) {
+      console.warn('HF TTS failed, falling back to Web Speech:', err);
     }
-  }, [kokoroReady, speakKokoro, speakWebSpeech, stopListening]);
+
+    if (!played) {
+      try {
+        await speakWebSpeech(text);
+      } catch (err) {
+        console.error('Web Speech also failed:', err);
+      }
+    }
+
+    setIsAgentSpeaking(false);
+  }, [speakHF, speakWebSpeech, stopListening]);
 
   const sendUserMessage = useCallback(async (text: string) => {
     if (processingRef.current) return;
     processingRef.current = true;
+    setIsProcessing(true);
     setTranscript('');
+    transcriptRef.current = '';
+    setAgentText(''); // clear previous agent reply so it doesn't overlap
 
     const userMsg: Message = { role: 'user', content: text };
     const newMessages = [...messages, userMsg];
@@ -173,28 +195,76 @@ export default function CallPage() {
 
       setAgentText(full);
       setMessages(prev => [...prev, { role: 'assistant', content: full }]);
+      setIsProcessing(false);
       await speak(full);
     } catch {
+      setIsProcessing(false);
       await speak("Sorry, I missed that — could you say it again?");
     } finally {
       processingRef.current = false;
-      // Auto-resume listening after agent finishes
-      if (phase === 'active' && !isMuted) startListening();
     }
-  }, [messages, speak, phase, isMuted, startListening]);
+  }, [messages, speak]);
 
-  // Accept call
+  const startListening = useCallback(() => {
+    if (isMuted || isAgentSpeaking || processingRef.current) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!SR) return;
+
+    // Clear any prior agent text once the user starts a new turn
+    setAgentText('');
+    setTranscript('');
+    transcriptRef.current = '';
+
+    const reco = new SR();
+    reco.continuous = false;
+    reco.interimResults = true;
+    reco.lang = 'en-US';
+    recoRef.current = reco;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reco.onresult = (e: any) => {
+      const interim = Array.from(e.results).map((r: any) => r[0].transcript).join('');
+      transcriptRef.current = interim;
+      setTranscript(interim);
+    };
+    reco.onend = () => {
+      setIsListening(false);
+      const final = transcriptRef.current.trim();
+      if (final && !processingRef.current) {
+        sendUserMessage(final);
+      }
+    };
+    reco.onerror = () => setIsListening(false);
+
+    try {
+      reco.start();
+      setIsListening(true);
+    } catch (err) {
+      console.error('reco.start error:', err);
+      setIsListening(false);
+    }
+  }, [isMuted, isAgentSpeaking, sendUserMessage]);
+
+  // Auto-resume listening once agent stops speaking (continuous conversation mode)
+  useEffect(() => {
+    if (phase !== 'active') return;
+    if (!isAgentSpeaking && !isListening && !isProcessing && !isMuted) {
+      const t = setTimeout(() => startListening(), 400);
+      return () => clearTimeout(t);
+    }
+  }, [phase, isAgentSpeaking, isListening, isProcessing, isMuted, startListening]);
+
   const acceptCall = useCallback(async () => {
     setPhase('connecting');
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 600));
     setPhase('active');
     setAgentText(GREETING);
     setMessages([{ role: 'assistant', content: GREETING }]);
     await speak(GREETING);
-    startListening();
-  }, [speak, startListening]);
+  }, [speak]);
 
-  // Hang up
   const hangUp = useCallback(() => {
     stopListening();
     audioRef.current?.pause();
@@ -202,16 +272,15 @@ export default function CallPage() {
     setPhase('ended');
     setIsListening(false);
     setIsAgentSpeaking(false);
+    setIsProcessing(false);
   }, [stopListening]);
 
-  // Cleanup on unmount
   useEffect(() => () => {
-    stopListening();
+    try { recoRef.current?.stop(); } catch { /* noop */ }
     audioRef.current?.pause();
     window.speechSynthesis?.cancel();
-  }, [stopListening]);
+  }, []);
 
-  // Ring animation interval
   const [ringFrame, setRingFrame] = useState(0);
   useEffect(() => {
     if (phase !== 'ringing') return;
@@ -232,20 +301,17 @@ export default function CallPage() {
         </p>
         <h1 className="text-2xl font-light text-white tracking-tight">Nexus Support</h1>
         <p className="text-gray-600 text-sm">+1 (800) 639-8700</p>
-        {kokoroReady === true && phase === 'active' && (
-          <span className="text-xs text-emerald-700/60 mt-1">Kokoro voice</span>
-        )}
-        {modelLoading && (
-          <span className="text-xs text-yellow-700 mt-1 animate-pulse">Voice model warming up...</span>
+        {phase === 'active' && voiceLabel && (
+          <span className="text-[10px] text-gray-600 mt-1 lowercase">voice · {voiceLabel}</span>
         )}
       </div>
 
-      {/* Avatar ring */}
+      {/* Avatar */}
       <div className="relative flex items-center justify-center my-8">
         {phase === 'ringing' && (
           <>
             <span className="absolute w-44 h-44 rounded-full border border-white/5 animate-ping" style={{ animationDuration: '1.5s' }} />
-            <span className="absolute w-36 h-36 rounded-full border border-white/8 animate-ping" style={{ animationDuration: '1.1s' }} />
+            <span className="absolute w-36 h-36 rounded-full border border-white/10 animate-ping" style={{ animationDuration: '1.1s' }} />
           </>
         )}
         {isAgentSpeaking && (
@@ -254,7 +320,6 @@ export default function CallPage() {
             <span className="absolute w-36 h-36 rounded-full border border-emerald-800/40 animate-ping" style={{ animationDuration: '0.85s' }} />
           </>
         )}
-
         <div className="w-28 h-28 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 border border-gray-700 flex items-center justify-center relative overflow-hidden">
           <span className="text-4xl">👩🏻‍💼</span>
           {isAgentSpeaking && (
@@ -263,31 +328,41 @@ export default function CallPage() {
         </div>
       </div>
 
-      {/* Status / transcript */}
-      <div className="w-full max-w-xs text-center min-h-[80px] flex flex-col items-center justify-center gap-2">
+      {/* Single-status text area — priority: speaking > thinking > listening > idle */}
+      <div className="w-full max-w-xs text-center min-h-[80px] flex flex-col items-center justify-center px-2">
         {phase === 'ringing' && (
           <p className="text-gray-500 text-sm animate-pulse">
-            {['ringing...', 'ringing...  ', 'ringing...    '][ringFrame % 3]}
+            {['ringing.  ', 'ringing.. ', 'ringing...'][ringFrame % 3]}
           </p>
         )}
-        {phase === 'active' && (
-          <>
-            {isListening && !isAgentSpeaking && (
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <p className="text-gray-400 text-sm italic">
-                  {transcript || 'Listening...'}
-                </p>
-              </div>
-            )}
-            {isAgentSpeaking && agentText && (
-              <p className="text-gray-300 text-sm leading-snug px-2">&ldquo;{agentText}&rdquo;</p>
-            )}
-            {!isListening && !isAgentSpeaking && !transcript && (
-              <p className="text-gray-600 text-xs">Tap mic to speak</p>
-            )}
-          </>
+
+        {phase === 'active' && isAgentSpeaking && agentText && (
+          <p className="text-gray-200 text-sm leading-relaxed">&ldquo;{agentText}&rdquo;</p>
         )}
+
+        {phase === 'active' && !isAgentSpeaking && isProcessing && (
+          <div className="flex gap-1.5 items-center">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+        )}
+
+        {phase === 'active' && !isAgentSpeaking && !isProcessing && isListening && (
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <p className="text-gray-400 text-sm italic">
+              {transcript || 'Listening...'}
+            </p>
+          </div>
+        )}
+
+        {phase === 'active' && !isAgentSpeaking && !isProcessing && !isListening && (
+          <p className="text-gray-600 text-xs">
+            {isMuted ? 'Muted' : 'Connecting mic...'}
+          </p>
+        )}
+
         {phase === 'ended' && (
           <div className="space-y-1">
             <p className="text-gray-500 text-sm">Call ended · {callTimer}</p>
@@ -296,16 +371,14 @@ export default function CallPage() {
         )}
       </div>
 
-      {/* Call controls */}
+      {/* Controls */}
       <div className="w-full max-w-xs">
         {phase === 'ringing' && (
           <div className="flex justify-center gap-16">
-            {/* Decline */}
             <button onClick={() => setPhase('ended')}
               className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 transition-colors flex items-center justify-center shadow-lg">
               <PhoneDownIcon />
             </button>
-            {/* Accept */}
             <button onClick={acceptCall}
               className="w-16 h-16 rounded-full bg-emerald-600 hover:bg-emerald-500 transition-colors flex items-center justify-center shadow-lg animate-bounce">
               <PhoneIcon />
@@ -315,13 +388,11 @@ export default function CallPage() {
 
         {phase === 'active' && (
           <div className="flex justify-center items-end gap-8">
-            {/* Mute */}
             <button
               onClick={() => {
                 const next = !isMuted;
                 setIsMuted(next);
                 if (next) stopListening();
-                else startListening();
               }}
               className={`w-14 h-14 rounded-full flex flex-col items-center justify-center gap-1 transition-colors ${isMuted ? 'bg-red-900/60 text-red-400' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
             >
@@ -329,17 +400,14 @@ export default function CallPage() {
               <span className="text-[9px]">{isMuted ? 'Unmute' : 'Mute'}</span>
             </button>
 
-            {/* Hang up */}
             <button onClick={hangUp}
               className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 transition-colors flex items-center justify-center shadow-lg">
               <PhoneDownIcon />
             </button>
 
-            {/* Manual mic push-to-talk */}
             <button
-              onPointerDown={startListening}
-              onPointerUp={() => { /* let reco.onend fire */ }}
-              disabled={isMuted || isAgentSpeaking}
+              onClick={startListening}
+              disabled={isMuted || isAgentSpeaking || isProcessing || isListening}
               className={`w-14 h-14 rounded-full flex flex-col items-center justify-center gap-1 transition-colors ${isListening ? 'bg-emerald-800 text-emerald-300' : 'bg-gray-800 text-gray-400 hover:text-white'} disabled:opacity-30`}
             >
               <span className="text-lg">🎙</span>
@@ -354,13 +422,6 @@ export default function CallPage() {
           </div>
         )}
       </div>
-
-      {/* Voice quality note */}
-      {kokoroReady === false && phase !== 'ended' && (
-        <p className="text-gray-800 text-xs text-center mt-4 max-w-xs">
-          Add <code className="text-gray-600">HF_TOKEN</code> to env for Kokoro neural voice · Using browser fallback
-        </p>
-      )}
     </div>
   );
 }
