@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1.2] - 2026-05-26
+
+### Removed
+- AI avatar demo page (`/avatar`) — removed the Charlie Munger AI persona page and its link from the profile
+
 ## [0.1.1.1] - 2026-05-26
 
 ### Added

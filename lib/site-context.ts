@@ -47,6 +47,5 @@ THIS WEBSITE (robinkwee.com):
 - Profile page with bio, ventures, social links
 - Blog at /blog
 - 365-day activity heatmap at /log (tracks workouts and habits)
-- AI avatar demo at /avatar (Charlie Munger persona)
 - This call agent at /call`;
 }
