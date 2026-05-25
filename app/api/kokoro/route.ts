@@ -1,8 +1,16 @@
 export const runtime = 'nodejs';
 
-// Kokoro-82M via HF Inference API — free, genuinely human-sounding
-// Voices: af_heart, af_bella, af_nicole, am_adam, am_michael, bf_emma, bm_george
-// Get a free HF token at huggingface.co/settings/tokens
+// Server-side TTS cascade: try human-sounding models first, fall back to reliable ones.
+// All free via HF Inference API. Returns audio/wav binary on success.
+
+const MODELS = [
+  // Kokoro: best human quality but may not be on standard inference API
+  { id: 'hexgrad/Kokoro-82M', useVoice: true, name: 'kokoro' },
+  // MMS-TTS: reliable Facebook TTS, decent quality, always works on HF free
+  { id: 'facebook/mms-tts-eng', useVoice: false, name: 'mms' },
+  // SpeechT5: Microsoft's natural-sounding TTS
+  { id: 'microsoft/speecht5_tts', useVoice: false, name: 'speecht5' },
+];
 
 export async function POST(req: Request) {
   const hfToken = process.env.HF_TOKEN;
@@ -23,40 +31,65 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: 'invalid body' }), { status: 400 });
   }
 
-  const hfRes = await fetch(
-    'https://api-inference.huggingface.co/models/hexgrad/Kokoro-82M',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${hfToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ inputs: text, parameters: { voice } }),
+  for (const model of MODELS) {
+    const body: Record<string, unknown> = { inputs: text };
+    if (model.useVoice) body.parameters = { voice };
+
+    try {
+      const hfRes = await fetch(
+        `https://api-inference.huggingface.co/models/${model.id}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${hfToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        }
+      );
+
+      const contentType = hfRes.headers.get('content-type') ?? '';
+
+      // 503 cold-start: model is loading. Skip and try next model (no point waiting 20s
+      // for Kokoro if MMS-TTS is warm and ready).
+      if (hfRes.status === 503) {
+        console.log(`[tts] ${model.name} cold-starting, trying next`);
+        continue;
+      }
+
+      // Non-200: try next model
+      if (!hfRes.ok) {
+        const errText = await hfRes.text().catch(() => '');
+        console.log(`[tts] ${model.name} failed ${hfRes.status}: ${errText.slice(0, 200)}`);
+        continue;
+      }
+
+      // Got JSON instead of audio = error response (model unsupported, etc)
+      if (contentType.includes('application/json')) {
+        const errBody = await hfRes.json().catch(() => ({}));
+        console.log(`[tts] ${model.name} returned JSON:`, errBody);
+        continue;
+      }
+
+      // Got audio - return it
+      const audio = await hfRes.arrayBuffer();
+      console.log(`[tts] ${model.name} succeeded (${audio.byteLength} bytes, ${contentType})`);
+      return new Response(audio, {
+        headers: {
+          'Content-Type': contentType || 'audio/wav',
+          'X-TTS-Model': model.name,
+          'Cache-Control': 'no-store',
+        },
+      });
+    } catch (err) {
+      console.log(`[tts] ${model.name} threw:`, err);
+      continue;
     }
-  );
-
-  // 503 = model cold-starting; client should retry after ~20s
-  if (hfRes.status === 503) {
-    const body = await hfRes.json().catch(() => ({}));
-    return new Response(
-      JSON.stringify({ error: 'MODEL_LOADING', estimated_time: (body as Record<string, number>).estimated_time ?? 20 }),
-      { status: 503, headers: { 'Content-Type': 'application/json' } }
-    );
   }
 
-  if (!hfRes.ok) {
-    const err = await hfRes.text();
-    console.error('Kokoro error:', hfRes.status, err);
-    return new Response(JSON.stringify({ error: 'tts_failed' }), { status: 502 });
-  }
-
-  const audio = await hfRes.arrayBuffer();
-  const contentType = hfRes.headers.get('content-type') ?? 'audio/flac';
-
-  return new Response(audio, {
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': 'no-store',
-    },
+  // All models failed
+  return new Response(JSON.stringify({ error: 'all_tts_failed' }), {
+    status: 502,
+    headers: { 'Content-Type': 'application/json' },
   });
 }
