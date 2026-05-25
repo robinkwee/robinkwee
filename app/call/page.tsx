@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 type Phase = 'ringing' | 'connecting' | 'active' | 'ended';
 type Message = { role: 'user' | 'assistant'; content: string };
 
-const GREETING = "Hi, thanks for calling Nexus, this is Aria speaking — how can I help you today?";
+const GREETING = "Hi, thanks for calling Robin Kwee's office, this is Aria — how can I help you today?";
 
 function useCallTimer(active: boolean) {
   const [secs, setSecs] = useState(0);
@@ -299,8 +299,8 @@ export default function CallPage() {
            phase === 'active' ? callTimer :
            'Call Ended'}
         </p>
-        <h1 className="text-2xl font-light text-white tracking-tight">Nexus Support</h1>
-        <p className="text-gray-600 text-sm">+1 (800) 639-8700</p>
+        <h1 className="text-2xl font-light text-white tracking-tight">Robin Kwee · Office</h1>
+        <p className="text-gray-600 text-sm">+63 917 848 2217</p>
         {phase === 'active' && voiceLabel && (
           <span className="text-[10px] text-gray-600 mt-1 lowercase">voice · {voiceLabel}</span>
         )}
