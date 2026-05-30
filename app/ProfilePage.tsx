@@ -1,10 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useChat } from 'ai/react';
 import type { Message } from 'ai';
 import { useEffect, useRef, useState } from 'react';
 import type { PostMeta } from '@/lib/markdown';
+
+const SkyBackground = dynamic(() => import('./SkyBackground'), { ssr: false });
 
 const VENTURES = [
   {
@@ -123,8 +126,9 @@ export default function ProfilePage({ recentPosts }: Props) {
   }, [chatOpen]);
 
   return (
-    <main className="bg-black min-h-dvh text-white">
-      <div className="max-w-sm mx-auto px-5 pt-10 pb-16">
+    <main className="relative min-h-dvh text-white">
+      <SkyBackground />
+      <div className="relative z-10 max-w-sm mx-auto px-5 pt-10 pb-16 backdrop-blur-[3px]">
 
         {/* Avatar & name */}
         <div className="flex flex-col items-center text-center mb-8">
@@ -135,7 +139,9 @@ export default function ProfilePage({ recentPosts }: Props) {
             height={80}
             className="w-20 h-20 rounded-full object-cover border border-gray-700 mb-4"
           />
-          <h1 className="text-xl font-semibold tracking-tight mb-1">Robin Kwee</h1>
+          <h1 className="text-xl font-semibold tracking-tight mb-1">
+            Rob<span data-north-star>i</span>n Kwee
+          </h1>
           <p className="text-gray-500 text-xs mb-2">🇵🇭 Philippines</p>
           <p className="text-gray-500 text-xs tracking-wide">
             Ecommerce · Padel · Farming · Coding · Systems
