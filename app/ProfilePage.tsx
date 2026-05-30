@@ -11,22 +11,16 @@ const SkyBackground = dynamic(() => import('./SkyBackground'), { ssr: false });
 
 const VENTURES = [
   {
-    label: 'robinkwee.com',
-    desc: 'Personal website',
-    href: 'http://robinkwee.com/',
-    tag: null,
+    label: 'GENAIO',
+    desc: 'The AI translation layer for Filipino business',
+    href: 'https://genaio.org',
+    tag: 'AI',
   },
   {
     label: 'DigitalNuvo',
     desc: 'AI Systems That Run Your Practice',
     href: 'https://digitalnuvo.com/',
     tag: 'Ecommerce',
-  },
-  {
-    label: 'GENAIO',
-    desc: 'The AI translation layer for Filipino business',
-    href: 'https://genaio.org',
-    tag: 'AI',
   },
   {
     label: 'PROSMASH',
