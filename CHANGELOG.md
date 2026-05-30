@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2.0] - 2026-05-30
+
+### Added
+- Animated night-sky background — a rotating starfield with a faint Milky Way band sits behind the profile, with the "i" in "Robin Kwee" anchoring the north star the sky turns around. Respects reduced-motion and pauses when the tab is hidden.
+
+### Changed
+- Profile now defaults to a dark sky gradient instead of solid black, with the content panel lifted above the stars on a subtle blur.
+
 ## [0.1.1.2] - 2026-05-26
 
 ### Removed
