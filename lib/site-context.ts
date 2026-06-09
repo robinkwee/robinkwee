@@ -5,7 +5,6 @@ const VENTURES = [
   { name: 'DigitalNuvo', tag: 'AI', url: 'digitalnuvo.com', desc: 'AI automation agency for SEA businesses — agents that replace manual workflows.' },
   { name: 'PROSMASH', tag: 'Padel', url: 'prosmash.ph', desc: 'Padel club operator with locations in Makati and Alabang, Philippines.' },
   { name: 'Padel League Philippines', tag: 'Padel', url: 'padelph.com', desc: 'Community + competitive layer for padel in the PH — leagues, rankings, tournaments.' },
-  { name: 'JarvisHealth', tag: 'Health', url: 'rkjarvishealth.netlify.app', desc: 'Telegram bot for calorie tracking via conversation — no app, no friction.' },
 ];
 
 const BIO = `Robin Kwee is a Philippines-based entrepreneur and builder. He runs several things in parallel — that's how he operates. Two main bets:
