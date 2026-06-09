@@ -9,17 +9,15 @@ export interface HabitDay {
   commits: number;
   workout: boolean;
   workoutType?: 'weights' | 'padel' | 'other';
-  calories: number | null;
 }
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const year = parseInt(searchParams.get('year') ?? String(new Date().getFullYear()), 10);
 
-  const [contributions, workouts, calories] = await Promise.allSettled([
+  const [contributions, workouts] = await Promise.allSettled([
     getGithubContributions(year),
     getWorkouts(),
-    fetchCalories(year),
   ]);
 
   const commitMap = new Map<string, number>();
@@ -35,11 +33,6 @@ export async function GET(req: Request) {
     }
   }
 
-  const calorieMap = new Map<string, number | null>();
-  if (calories.status === 'fulfilled' && calories.value) {
-    for (const c of calories.value) calorieMap.set(c.date, c.calories);
-  }
-
   // Build full year grid
   const days: HabitDay[] = [];
   const start = new Date(`${year}-01-01`);
@@ -52,28 +45,10 @@ export async function GET(req: Request) {
       commits: commitMap.get(date) ?? 0,
       workout: workoutMap.has(date),
       workoutType,
-      calories: calorieMap.get(date) ?? null,
     });
   }
 
   return new Response(JSON.stringify(days), {
     headers: { 'Content-Type': 'application/json' },
   });
-}
-
-async function fetchCalories(year: number): Promise<{ date: string; calories: number }[] | null> {
-  const url = process.env.JARVIS_EXPORT_URL;
-  const key = process.env.JARVIS_API_KEY;
-  if (!url || !key) return null;
-
-  try {
-    const res = await fetch(
-      `${url}?from=${year}-01-01&to=${year}-12-31`,
-      { headers: { 'x-api-key': key }, next: { revalidate: 86400 } }
-    );
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
 }

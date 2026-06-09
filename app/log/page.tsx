@@ -8,7 +8,7 @@ export const revalidate = 86400;
 
 export const metadata = {
   title: '365 days of showing up — Robin Kwee',
-  description: 'Daily habits: code shipped, workouts logged, calories tracked.',
+  description: 'Daily habits: code shipped, workouts logged.',
 };
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ function computeStreaks(days: HabitDay[]) {
   const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
   const today = isoDate(new Date());
 
-  let codeStreak = 0, workoutStreak = 0, calStreak = 0, fullStreak = 0;
+  let codeStreak = 0, workoutStreak = 0, fullStreak = 0;
 
   for (let i = sorted.length - 1; i >= 0; i--) {
     const d = sorted[i];
@@ -48,20 +48,16 @@ function computeStreaks(days: HabitDay[]) {
     if (workoutStreak >= 0 && d.workout) workoutStreak++;
     else workoutStreak = -workoutStreak;
 
-    if (calStreak >= 0 && d.calories !== null) calStreak++;
-    else calStreak = -calStreak;
-
-    const full = d.commits > 0 && d.workout && d.calories !== null;
+    const full = d.commits > 0 && d.workout;
     if (fullStreak >= 0 && full) fullStreak++;
     else fullStreak = -fullStreak;
 
-    if (codeStreak < 0 && workoutStreak < 0 && calStreak < 0 && fullStreak < 0) break;
+    if (codeStreak < 0 && workoutStreak < 0 && fullStreak < 0) break;
   }
 
   return {
     code: Math.max(0, codeStreak),
     workout: Math.max(0, workoutStreak),
-    calories: Math.max(0, calStreak),
     full: Math.max(0, fullStreak),
   };
 }
@@ -75,8 +71,7 @@ function weeklyStats(days: HabitDay[]) {
   return {
     code: week.filter((d) => d.commits > 0).length,
     workout: week.filter((d) => d.workout).length,
-    calories: week.filter((d) => d.calories !== null).length,
-    full: week.filter((d) => d.commits > 0 && d.workout && d.calories !== null).length,
+    full: week.filter((d) => d.commits > 0 && d.workout).length,
   };
 }
 
@@ -87,16 +82,14 @@ function Cell({ day, postDates }: { day: HabitDay | null; postDates: Set<string>
 
   const hasCode = day.commits > 0;
   const hasWorkout = day.workout;
-  const hasCal = day.calories !== null;
-  const full = hasCode && hasWorkout && hasCal;
-  const any = hasCode || hasWorkout || hasCal;
+  const full = hasCode && hasWorkout;
+  const any = hasCode || hasWorkout;
   const hasPost = postDates.has(day.date);
 
   const label = [
     day.date,
     hasCode ? `${day.commits} commit${day.commits !== 1 ? 's' : ''}` : '',
     hasWorkout ? `workout (${day.workoutType ?? 'logged'})` : '',
-    hasCal ? `${day.calories} kcal` : '',
     hasPost ? '★ post published' : '',
   ]
     .filter(Boolean)
@@ -118,8 +111,6 @@ function Cell({ day, postDates }: { day: HabitDay | null; postDates: Set<string>
         <div className={`flex-1 rounded-[1px] ${hasCode ? 'bg-violet-400' : 'bg-transparent'}`} />
         {/* green = workout */}
         <div className={`flex-1 rounded-[1px] ${hasWorkout ? 'bg-emerald-400' : 'bg-transparent'}`} />
-        {/* orange = calories */}
-        <div className={`flex-1 rounded-[1px] ${hasCal ? 'bg-amber-400' : 'bg-transparent'}`} />
       </div>
     </div>
   );
@@ -161,14 +152,13 @@ export default async function LogPage() {
       commits: commitMap.get(date) ?? 0,
       workout: workoutMap.has(date),
       workoutType,
-      calories: null, // JarvisHealth integration added when JARVIS_EXPORT_URL is set
     });
   }
 
   const streaks = computeStreaks(days);
   const week = weeklyStats(days);
   const weeks = buildGrid(year, days);
-  const fullDaysCount = days.filter((d) => d.commits > 0 && d.workout && d.calories !== null).length;
+  const fullDaysCount = days.filter((d) => d.commits > 0 && d.workout).length;
   const todayStr = isoDate(new Date());
   const dayOfYear = days.findIndex((d) => d.date === todayStr) + 1;
 
@@ -190,14 +180,13 @@ export default async function LogPage() {
 
         <h1 className="text-2xl font-semibold tracking-tight mb-1">365 days of showing up.</h1>
         <p className="text-gray-500 text-sm mb-8">
-          Day {dayOfYear} of {year} · {fullDaysCount} full days (code + workout + calories)
+          Day {dayOfYear} of {year} · {fullDaysCount} full days (code + workout)
         </p>
 
         {/* Streaks */}
-        <div className="grid grid-cols-4 gap-4 bg-[#111] border border-gray-800 rounded-xl px-6 py-5 mb-6">
+        <div className="grid grid-cols-3 gap-4 bg-[#111] border border-gray-800 rounded-xl px-6 py-5 mb-6">
           <StreakBadge value={streaks.code} label="code streak" color="text-violet-400" />
           <StreakBadge value={streaks.workout} label="workout streak" color="text-emerald-400" />
-          <StreakBadge value={streaks.calories} label="cal streak" color="text-amber-400" />
           <StreakBadge value={streaks.full} label="full days" color="text-white" />
         </div>
 
@@ -207,7 +196,6 @@ export default async function LogPage() {
           <div className="flex gap-6">
             <span className="text-sm"><span className="text-violet-400 font-medium">{week.code}</span><span className="text-gray-600"> / 7 days coded</span></span>
             <span className="text-sm"><span className="text-emerald-400 font-medium">{week.workout}</span><span className="text-gray-600"> workouts</span></span>
-            <span className="text-sm"><span className="text-amber-400 font-medium">{week.calories}</span><span className="text-gray-600"> tracked</span></span>
           </div>
         </div>
 
@@ -231,7 +219,6 @@ export default async function LogPage() {
           {[
             { color: 'bg-violet-400', label: 'code' },
             { color: 'bg-emerald-400', label: 'workout' },
-            { color: 'bg-amber-400', label: 'calories' },
             { color: 'bg-yellow-400', label: '★ post' },
           ].map(({ color, label }) => (
             <div key={label} className="flex items-center gap-1.5">
@@ -270,7 +257,7 @@ export default async function LogPage() {
         )}
 
         <div className="mt-12 pt-8 border-t border-gray-900 text-xs text-gray-700">
-          Data: GitHub API · JarvisWorkout · JarvisHealth
+          Data: GitHub API · JarvisWorkout
         </div>
 
       </div>
