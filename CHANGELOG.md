@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3.0] - 2026-06-12
+
+### Added
+- New profile landing page at `/2` — an awwwards-style experience with a Three.js particle scene that morphs through four shapes (sphere → cloud → wave grid → torus) as you scroll, driven by custom GLSL shaders with 9 000 particles on desktop
+- GSAP-powered entrance animation: a preloader counter ticks 000→100, curtain wipes away, then the hero name and supporting text char-reveal into view
+- Scroll-driven animations throughout: thesis word-by-word reveals, venture cascade, 365-day activity counter, and a heatmap of daily work
+- Live Manila clock in the nav bar and fully responsive layout down to 375 px
+- Instrument Serif typeface for editorial headings; custom cursor with blend-mode difference effect on desktop
+- Graceful degradation: particle scene uses a try/catch WebGL guard so the page loads cleanly on any device; `prefers-reduced-motion` disables all animations
+- Added `gsap` (3.15.0) and `three` (0.184.0) runtime dependencies
+
 ## [0.1.2.0] - 2026-05-30
 
 ### Added
