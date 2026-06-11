@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3.0] - 2026-06-11
+
+### Added
+- Black hole page at `/blackhole` — a swirling accretion-disk black hole rendered live in the browser by a WebGL fragment shader (~3 KB, no video file, no new dependencies), inspired by motionsites.io. Capped at ~30fps with a 1.5x pixel-ratio ceiling to stay easy on GPU and battery, respects reduced motion (renders a single still frame), survives GPU context loss, and falls back to a plain dark page when WebGL is unavailable.
+
 ## [0.1.2.0] - 2026-05-30
 
 ### Added
