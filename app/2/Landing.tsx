@@ -341,8 +341,8 @@ export default function Landing() {
         </section>
 
         {/* THESIS */}
-        <section className="v2-thesis">
-          <p className="v2-kicker">The thesis</p>
+        <section className="v2-thesis" aria-labelledby="thesis-heading">
+          <h2 id="thesis-heading" className="v2-kicker">The thesis</h2>
           <p className="v2-thesis-line">Everyone is building AI companies.</p>
           <p className="v2-thesis-line">
             The bigger opportunity — taking AI into the <em>physical world</em>,

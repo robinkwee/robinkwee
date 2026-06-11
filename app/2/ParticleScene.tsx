@@ -240,11 +240,13 @@ export default function ParticleScene({ progressRef }: Props) {
       uniforms.uProgress.value = smoothProgress;
       uniforms.uOpacity.value = Math.min(1, uniforms.uOpacity.value + dt * 0.6);
 
-      mouse.x += (mouse.tx - mouse.x) * 0.04;
-      mouse.y += (mouse.ty - mouse.y) * 0.04;
+      if (!reduce) {
+        mouse.x += (mouse.tx - mouse.x) * 0.04;
+        mouse.y += (mouse.ty - mouse.y) * 0.04;
+      }
       const autoSpin = reduce ? 0 : Math.max(0, 1 - smoothProgress * 0.55);
-      group.rotation.y = t * 0.05 * autoSpin + mouse.x * 0.22;
-      group.rotation.x = mouse.y * 0.12;
+      group.rotation.y = reduce ? 0 : t * 0.05 * autoSpin + mouse.x * 0.22;
+      group.rotation.x = reduce ? 0 : mouse.y * 0.12;
       camera.position.y = -smoothProgress * 0.06;
       camera.lookAt(0, 0, 0);
 
