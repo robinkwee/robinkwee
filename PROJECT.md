@@ -5,7 +5,8 @@
 **Single source of truth** for what this project contains, the status of every
 feature, and what's planned. Update rule in `CLAUDE.md`.
 
-**Last updated:** 2026-06-15
+**Last updated:** 2026-06-15  
+**Status:** V2 promoted to main (2026-06-15)
 
 ---
 
@@ -21,7 +22,8 @@ feature, and what's planned. Update rule in `CLAUDE.md`.
 
 What's actively in flight right now. Update when priorities shift, not just when work lands.
 
-- 💤 Maintenance mode. The site is shipped at v0.1.2.0 (animated night-sky background, AI chat live). No active build right now; next move is V2 rate limiting on the chat endpoint before traffic scales.
+- ✅ **V2 LIVE (2026-06-15)** — Landing page with particle animation is now the main experience (`/`). Original profile archived at `/old`. All routes (api, blog, call, log) preserved.
+- 📋 Next: Rate limiting on `/api/chat` before traffic scales; add `@upstash/ratelimit` keyed on IP.
 
 ---
 
@@ -38,12 +40,18 @@ What's actively in flight right now. Update when priorities shift, not just when
 
 ```
 .
-├── app/                     Next.js App Router
-│   ├── page.tsx             Home (redirects to ProfilePage)
-│   ├── ProfilePage.tsx      Main profile UI — venture cards, social links, AI chat
-│   ├── SkyBackground.tsx    Animated rotating starfield (Milky Way band)
-│   ├── layout.tsx           Root layout
-│   ├── globals.css          Tailwind + global styles
+├── app/                     Next.js App Router (V2 live)
+│   ├── page.tsx             Home → Landing (particle scene)
+│   ├── layout.tsx           Root layout (V2)
+│   ├── Landing.tsx          Animated landing experience (V2)
+│   ├── ParticleScene.tsx    WebGL particle effects (V2)
+│   ├── v2.css               V2 styling
+│   ├── old/                 Original profile + UI (archived)
+│   │   ├── page.tsx         Original home
+│   │   ├── layout.tsx       Original layout
+│   │   ├── ProfilePage.tsx  Original profile UI
+│   │   ├── SkyBackground.tsx Original starfield background
+│   │   └── globals.css      Original styles
 │   ├── blog/                Blog index + dynamic [slug] + rss.xml
 │   ├── log/                 365-day activity heatmap (workouts + habits)
 │   ├── call/                Voice-call surface
@@ -115,6 +123,7 @@ Status legend: ✅ Done · 🚧 In progress · 📋 Planned
 
 Newest first. One-line entry per change.
 
+- 2026-06-15 — **V2 LIVE** — Swapped v2 landing experience to main (`/`); original profile archived at `/old`; all routes and APIs preserved; build verified.
 - 2026-06-15 — Added `PROJECT.md` (this tracker) and the project-tracking update rule in `CLAUDE.md`. Folded `TODOS.md` into Roadmap and removed it.
 - 2026-05-30 — v0.1.2.0: animated night-sky background; profile defaults to dark sky gradient with blurred content panel above the stars.
 - 2026-05-26 — v0.1.1.2: removed `/avatar` (Charlie Munger AI persona) demo page and its profile link.
