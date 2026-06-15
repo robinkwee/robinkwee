@@ -1,7 +1,5 @@
-import { getPostMeta } from '@/lib/markdown';
-import ProfilePage from './ProfilePage';
+import Landing from './Landing';
 
-export default function Home() {
-  const recentPosts = getPostMeta().slice(0, 3);
-  return <ProfilePage recentPosts={recentPosts} />;
+export default function Page2() {
+  return <Landing />;
 }
