@@ -5,14 +5,14 @@
 **Single source of truth** for what this project contains, the status of every
 feature, and what's planned. Update rule in `CLAUDE.md`.
 
-**Last updated:** 2026-06-15  
+**Last updated:** 2026-07-17  
 **Status:** V2 promoted to main (2026-06-15)
 
 ---
 
 ## Overview
 
-- **Vision:** A living personal site that introduces Robin, surfaces what he's building (GENAIO, DigitalNuvo, 247 Cargo), and lets visitors *talk* to an AI version of him — not just read about him.
+- **Vision:** A living personal site that introduces Robin, surfaces what he's building (PeopleDrivenAI, DigitalNuvo, 247 Cargo), and lets visitors *talk* to an AI version of him — not just read about him.
 - **Audience:** Founders, collaborators, recruiters, and friends landing on the site from LinkedIn / venture pages.
 - **Goals (now):** Keep the page fresh as ventures evolve; harden the public AI chat against abuse; selectively add interactive surfaces (avatar, call, log) without bloating the page.
 
@@ -80,7 +80,7 @@ What's actively in flight right now. Update when priorities shift, not just when
 Status legend: ✅ Done · 🚧 In progress · 📋 Planned
 
 ### Main site
-- ✅ Profile page — venture cards (247 Cargo, GENAIO, DigitalNuvo), headshot, social links.
+- ✅ Profile page — venture cards (247 Cargo, PeopleDrivenAI, DigitalNuvo), headshot, social links.
 - ✅ Animated night-sky background — rotating starfield + Milky Way band; "i" in "Robin Kwee" anchors the north star; respects `prefers-reduced-motion`; pauses on hidden tab.
 - ✅ Blog — index + `/blog/[slug]` from markdown in `content/posts/` (remark + rehype + highlighting); `rss.xml`.
 - ✅ Activity log (`/log`) — 365-day heatmap of workouts + habits.
@@ -123,6 +123,7 @@ Status legend: ✅ Done · 🚧 In progress · 📋 Planned
 
 Newest first. One-line entry per change.
 
+- 2026-07-17 — Renamed GENAIO venture to PeopleDrivenAI; link updated to `peopledrivenai.org` across landing + profile.
 - 2026-06-15 — **V2 LIVE** — Swapped v2 landing experience to main (`/`); original profile archived at `/old`; all routes and APIs preserved; build verified.
 - 2026-06-15 — Added `PROJECT.md` (this tracker) and the project-tracking update rule in `CLAUDE.md`. Folded `TODOS.md` into Roadmap and removed it.
 - 2026-05-30 — v0.1.2.0: animated night-sky background; profile defaults to dark sky gradient with blurred content panel above the stars.

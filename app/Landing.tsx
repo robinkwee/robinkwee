@@ -14,9 +14,9 @@ const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : use
 const VENTURES = [
   {
     idx: '01',
-    name: 'GENAIO',
+    name: 'PeopleDrivenAI',
     desc: 'The AI translation layer for Filipino business.',
-    href: 'https://genaio.org',
+    href: 'https://peopledrivenai.org',
     tag: 'AI',
   },
   {
