@@ -11,9 +11,9 @@ const SkyBackground = dynamic(() => import('./SkyBackground'), { ssr: false });
 
 const VENTURES = [
   {
-    label: 'GENAIO',
+    label: 'PeopleDrivenAI',
     desc: 'The AI translation layer for Filipino business',
-    href: 'https://genaio.org',
+    href: 'https://peopledrivenai.org',
     tag: 'AI',
   },
   {
