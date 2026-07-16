@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- Renamed GENAIO venture to PeopleDrivenAI; updated link from `genaio.org` to `peopledrivenai.org` across landing and profile pages.
+
 ## [0.1.3.0] - 2026-06-12
 
 ### Added
