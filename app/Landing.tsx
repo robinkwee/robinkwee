@@ -11,6 +11,9 @@ const ParticleScene = dynamic(() => import('./ParticleScene'), { ssr: false });
 
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
+/** Hard ceiling on how long the intro overlay may cover the page. */
+const REVEAL_FAILSAFE_MS = 4000;
+
 const VENTURES = [
   {
     idx: '01',
@@ -99,152 +102,174 @@ export default function Landing() {
   const progressRef = useRef(0);
 
   useIsoLayoutEffect(() => {
-    gsap.registerPlugin(ScrollTrigger, SplitText);
     const root = rootRef.current;
     if (!root) return;
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const cleanups: Array<() => void> = [];
 
-    const ctx = gsap.context(() => {
-      const pre = root.querySelector('.v2-preloader');
-      const counter = root.querySelector('.v2-preloader-count');
+    /**
+     * The preloader is a full-screen opaque overlay and `v2-lock` freezes scroll.
+     * Both are only ever cleared by the intro timeline, so any failure in GSAP
+     * (chunk load error, plugin throw, hostile extension) would leave the site
+     * blank and unscrollable. Reveal is therefore idempotent and always runs:
+     * on success from the timeline, otherwise from a catch or a failsafe timer.
+     */
+    let revealed = false;
+    const reveal = () => {
+      if (revealed) return;
+      revealed = true;
+      window.clearTimeout(failsafe);
+      document.documentElement.classList.remove('v2-lock');
+      const el = root.querySelector<HTMLElement>('.v2-preloader');
+      if (el) el.style.display = 'none';
+    };
+    const failsafe = window.setTimeout(reveal, REVEAL_FAILSAFE_MS);
 
-      if (reduce) {
-        gsap.set(pre, { display: 'none' });
-        return; // content is fully visible without animation
-      }
+    let ctx: gsap.Context | undefined;
+    try {
+      gsap.registerPlugin(ScrollTrigger, SplitText);
+      ctx = gsap.context(() => {
+        const pre = root.querySelector('.v2-preloader');
+        const counter = root.querySelector('.v2-preloader-count');
 
-      // particle morph driven by overall page scroll
-      ScrollTrigger.create({
-        trigger: root,
-        start: 'top top',
-        end: 'bottom bottom',
-        onUpdate: (self) => {
-          progressRef.current = self.progress * 3;
-        },
-      });
+        if (reduce) {
+          reveal(); // content is fully visible without animation
+          return;
+        }
 
-      document.documentElement.classList.add('v2-lock');
-
-      // intro: counter → curtain → hero type
-      const nameSplits = Array.from(root.querySelectorAll('.v2-hero-name > span')).map(
-        (el) => new SplitText(el, { type: 'chars', mask: 'chars' })
-      );
-      const chars = nameSplits.flatMap((s) => s.chars);
-      const heroBits = root.querySelectorAll('.v2-hero .v2-kicker, .v2-hero-line, .v2-hero-foot');
-
-      const num = { v: 0 };
-      gsap
-        .timeline({ defaults: { ease: 'power3.out' } })
-        .to(num, {
-          v: 100,
-          duration: 1.1,
-          ease: 'power2.inOut',
-          onUpdate() {
-            if (counter) counter.textContent = String(Math.round(num.v)).padStart(3, '0');
-          },
-        })
-        .to(
-          pre,
-          {
-            yPercent: -100,
-            duration: 0.85,
-            ease: 'power3.inOut',
-            onComplete() {
-              document.documentElement.classList.remove('v2-lock');
-            },
-          },
-          '+=0.1'
-        )
-        .from(chars, { yPercent: 110, stagger: 0.022, duration: 0.9 }, '-=0.45')
-        .from(heroBits, { y: 24, autoAlpha: 0, stagger: 0.09, duration: 0.7 }, '-=0.55')
-        .set(pre, { display: 'none' });
-
-      // hero drifts away as you scroll
-      gsap.to('.v2-hero-inner', {
-        yPercent: -12,
-        autoAlpha: 0.15,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: '.v2-hero',
+        // particle morph driven by overall page scroll
+        ScrollTrigger.create({
+          trigger: root,
           start: 'top top',
-          end: 'bottom 25%',
-          scrub: true,
-        },
-      });
+          end: 'bottom bottom',
+          onUpdate: (self) => {
+            progressRef.current = self.progress * 3;
+          },
+        });
 
-      // thesis: word-by-word reveals
-      root.querySelectorAll('.v2-thesis-line').forEach((line) => {
-        const split = new SplitText(line, { type: 'words', mask: 'words' });
-        gsap.from(split.words, {
-          yPercent: 120,
-          stagger: 0.018,
+        document.documentElement.classList.add('v2-lock');
+
+        // intro: counter → curtain → hero type
+        const nameSplits = Array.from(root.querySelectorAll('.v2-hero-name > span')).map(
+          (el) => new SplitText(el, { type: 'chars', mask: 'chars' })
+        );
+        const chars = nameSplits.flatMap((s) => s.chars);
+        const heroBits = root.querySelectorAll('.v2-hero .v2-kicker, .v2-hero-line, .v2-hero-foot');
+
+        const num = { v: 0 };
+        gsap
+          .timeline({ defaults: { ease: 'power3.out' } })
+          .to(num, {
+            v: 100,
+            duration: 1.1,
+            ease: 'power2.inOut',
+            onUpdate() {
+              if (counter) counter.textContent = String(Math.round(num.v)).padStart(3, '0');
+            },
+          })
+          .to(
+            pre,
+            {
+              yPercent: -100,
+              duration: 0.85,
+              ease: 'power3.inOut',
+              onComplete: reveal,
+            },
+            '+=0.1'
+          )
+          .from(chars, { yPercent: 110, stagger: 0.022, duration: 0.9 }, '-=0.45')
+          .from(heroBits, { y: 24, autoAlpha: 0, stagger: 0.09, duration: 0.7 }, '-=0.55')
+          .call(reveal);
+
+        // hero drifts away as you scroll
+        gsap.to('.v2-hero-inner', {
+          yPercent: -12,
+          autoAlpha: 0.15,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: '.v2-hero',
+            start: 'top top',
+            end: 'bottom 25%',
+            scrub: true,
+          },
+        });
+
+        // thesis: word-by-word reveals
+        root.querySelectorAll('.v2-thesis-line').forEach((line) => {
+          const split = new SplitText(line, { type: 'words', mask: 'words' });
+          gsap.from(split.words, {
+            yPercent: 120,
+            stagger: 0.018,
+            duration: 0.8,
+            ease: 'power3.out',
+            scrollTrigger: { trigger: line, start: 'top 85%', toggleActions: 'play none none reverse' },
+          });
+        });
+
+        // generic fade-up reveals
+        root.querySelectorAll('[data-reveal]').forEach((el) => {
+          gsap.from(el, {
+            y: 36,
+            autoAlpha: 0,
+            duration: 0.9,
+            ease: 'power3.out',
+            scrollTrigger: { trigger: el, start: 'top 88%', toggleActions: 'play none none reverse' },
+          });
+        });
+
+        // venture rows cascade in
+        gsap.from('.v2-vrow', {
+          y: 48,
+          autoAlpha: 0,
+          stagger: 0.08,
           duration: 0.8,
           ease: 'power3.out',
-          scrollTrigger: { trigger: line, start: 'top 85%', toggleActions: 'play none none reverse' },
+          scrollTrigger: { trigger: '.v2-ventures', start: 'top 72%' },
         });
-      });
 
-      // generic fade-up reveals
-      root.querySelectorAll('[data-reveal]').forEach((el) => {
-        gsap.from(el, {
-          y: 36,
+        // 365 counter
+        const numEl = root.querySelector('.v2-count-num');
+        if (numEl) {
+          const o = { v: 0 };
+          gsap.to(o, {
+            v: 365,
+            duration: 1.8,
+            ease: 'power2.out',
+            onUpdate() {
+              numEl.textContent = String(Math.round(o.v));
+            },
+            scrollTrigger: { trigger: '.v2-proof', start: 'top 70%', once: true },
+          });
+        }
+
+        // heatmap cells pop in
+        gsap.from('.v2-cell', {
+          scale: 0,
           autoAlpha: 0,
-          duration: 0.9,
-          ease: 'power3.out',
-          scrollTrigger: { trigger: el, start: 'top 88%', toggleActions: 'play none none reverse' },
-        });
-      });
-
-      // venture rows cascade in
-      gsap.from('.v2-vrow', {
-        y: 48,
-        autoAlpha: 0,
-        stagger: 0.08,
-        duration: 0.8,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: '.v2-ventures', start: 'top 72%' },
-      });
-
-      // 365 counter
-      const numEl = root.querySelector('.v2-count-num');
-      if (numEl) {
-        const o = { v: 0 };
-        gsap.to(o, {
-          v: 365,
-          duration: 1.8,
+          duration: 0.4,
           ease: 'power2.out',
-          onUpdate() {
-            numEl.textContent = String(Math.round(o.v));
-          },
-          scrollTrigger: { trigger: '.v2-proof', start: 'top 70%', once: true },
+          stagger: { each: 0.004 },
+          scrollTrigger: { trigger: '.v2-heatmap', start: 'top 82%', once: true },
         });
-      }
 
-      // heatmap cells pop in
-      gsap.from('.v2-cell', {
-        scale: 0,
-        autoAlpha: 0,
-        duration: 0.4,
-        ease: 'power2.out',
-        stagger: { each: 0.004 },
-        scrollTrigger: { trigger: '.v2-heatmap', start: 'top 82%', once: true },
-      });
-
-      // contact heading
-      const big = root.querySelector('.v2-contact-big');
-      if (big) {
-        const split = new SplitText(big, { type: 'words', mask: 'words' });
-        gsap.from(split.words, {
-          yPercent: 110,
-          stagger: 0.05,
-          duration: 0.9,
-          ease: 'power3.out',
-          scrollTrigger: { trigger: big, start: 'top 85%' },
-        });
-      }
-    }, root);
+        // contact heading
+        const big = root.querySelector('.v2-contact-big');
+        if (big) {
+          const split = new SplitText(big, { type: 'words', mask: 'words' });
+          gsap.from(split.words, {
+            yPercent: 110,
+            stagger: 0.05,
+            duration: 0.9,
+            ease: 'power3.out',
+            scrollTrigger: { trigger: big, start: 'top 85%' },
+          });
+        }
+      }, root);
+    } catch (err) {
+      console.error('Landing intro failed — revealing content unanimated:', err);
+      reveal();
+    }
 
     // custom cursor (desktop, motion ok)
     if (!reduce && window.matchMedia('(pointer: fine)').matches) {
@@ -274,14 +299,15 @@ export default function Landing() {
     if (document.fonts?.ready) document.fonts.ready.then(refresh).catch(() => {});
 
     return () => {
+      window.clearTimeout(failsafe);
       document.documentElement.classList.remove('v2-lock');
       cleanups.forEach((fn) => fn());
-      ctx.revert();
+      ctx?.revert();
     };
   }, []);
 
   return (
-    <div ref={rootRef} className="v2-app">
+    <div ref={rootRef} className="v2-root v2-app">
       <ParticleScene progressRef={progressRef} />
       <div className="v2-vignette" aria-hidden="true" />
       <div className="v2-grain" aria-hidden="true" />
@@ -294,7 +320,7 @@ export default function Landing() {
 
       <header className="v2-nav v2-mono">
         <a href="#top" className="v2-nav-brand">
-          Robin Kwee <span>/2</span>
+          Robin Kwee <span>MNL</span>
         </a>
         <nav className="v2-nav-links" aria-label="Sections">
           <a href="#ventures">Ventures</a>
@@ -452,7 +478,7 @@ export default function Landing() {
       <footer className="v2-footer v2-mono">
         <span>© 2026 Robin Kwee — Manila</span>
         <span>
-          Prefer the classic? <Link href="/">robinkwee.com →</Link>
+          Prefer the classic? <Link href="/old">Original profile →</Link>
         </span>
       </footer>
     </div>

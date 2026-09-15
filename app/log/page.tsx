@@ -2,78 +2,23 @@ import Link from 'next/link';
 import { getGithubContributions } from '@/lib/github-contributions';
 import { getWorkouts } from '@/lib/workouts';
 import { getPostMeta } from '@/lib/markdown';
-import type { HabitDay } from '@/app/api/habits/route';
+import {
+  buildGrid,
+  buildHabitDays,
+  computeStreaks,
+  weeklyStats,
+  type HabitDay,
+  type WorkoutType,
+} from '@/lib/habits';
+import { manilaToday } from '@/lib/manila';
 
 export const revalidate = 86400;
 
 export const metadata = {
-  title: '365 days of showing up — Robin Kwee',
+  title: '365 days of showing up',
   description: 'Daily habits: code shipped, workouts logged.',
+  alternates: { canonical: '/log' },
 };
-
-// ── helpers ────────────────────────────────────────────────────────────────
-
-function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-function buildGrid(year: number, days: HabitDay[]) {
-  const map = new Map(days.map((d) => [d.date, d]));
-  const jan1 = new Date(`${year}-01-01`);
-  // pad so week starts on Sunday
-  const startPad = jan1.getDay();
-  const cells: (HabitDay | null)[] = Array(startPad).fill(null);
-  const end = new Date(`${year}-12-31`);
-  for (let d = new Date(jan1); d <= end; d.setDate(d.getDate() + 1)) {
-    cells.push(map.get(isoDate(d)) ?? null);
-  }
-  // group into weeks of 7
-  const weeks: (HabitDay | null)[][] = [];
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
-  return weeks;
-}
-
-function computeStreaks(days: HabitDay[]) {
-  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
-  const today = isoDate(new Date());
-
-  let codeStreak = 0, workoutStreak = 0, fullStreak = 0;
-
-  for (let i = sorted.length - 1; i >= 0; i--) {
-    const d = sorted[i];
-    if (d.date > today) continue;
-    if (codeStreak >= 0 && d.commits > 0) codeStreak++;
-    else codeStreak = -codeStreak; // stop counting
-
-    if (workoutStreak >= 0 && d.workout) workoutStreak++;
-    else workoutStreak = -workoutStreak;
-
-    const full = d.commits > 0 && d.workout;
-    if (fullStreak >= 0 && full) fullStreak++;
-    else fullStreak = -fullStreak;
-
-    if (codeStreak < 0 && workoutStreak < 0 && fullStreak < 0) break;
-  }
-
-  return {
-    code: Math.max(0, codeStreak),
-    workout: Math.max(0, workoutStreak),
-    full: Math.max(0, fullStreak),
-  };
-}
-
-function weeklyStats(days: HabitDay[]) {
-  const today = new Date();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-  monday.setHours(0, 0, 0, 0);
-  const week = days.filter((d) => d.date >= isoDate(monday));
-  return {
-    code: week.filter((d) => d.commits > 0).length,
-    workout: week.filter((d) => d.workout).length,
-    full: week.filter((d) => d.commits > 0 && d.workout).length,
-  };
-}
 
 // ── components ─────────────────────────────────────────────────────────────
 
@@ -128,7 +73,8 @@ function StreakBadge({ value, label, color }: { value: number; label: string; co
 // ── page ───────────────────────────────────────────────────────────────────
 
 export default async function LogPage() {
-  const year = new Date().getFullYear();
+  const today = manilaToday();
+  const year = Number(today.slice(0, 4));
 
   const [contributions, workouts, posts] = await Promise.all([
     getGithubContributions(year).catch(() => []),
@@ -136,31 +82,19 @@ export default async function LogPage() {
     Promise.resolve(getPostMeta()),
   ]);
 
-  // Build HabitDay array
   const commitMap = new Map(contributions.map((d) => [d.date, d.count]));
-  const workoutMap = new Map(workouts.map((w) => [w.date.slice(0, 10), w.type]));
+  const workoutMap = new Map<string, WorkoutType>(
+    workouts.map((w) => [w.date.slice(0, 10), w.type])
+  );
   const postDates = new Set(posts.map((p) => p.date));
 
-  const days: HabitDay[] = [];
-  const start = new Date(`${year}-01-01`);
-  const end = new Date(`${year}-12-31`);
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const date = isoDate(d);
-    const workoutType = workoutMap.get(date);
-    days.push({
-      date,
-      commits: commitMap.get(date) ?? 0,
-      workout: workoutMap.has(date),
-      workoutType,
-    });
-  }
+  const days = buildHabitDays(year, commitMap, workoutMap);
 
-  const streaks = computeStreaks(days);
-  const week = weeklyStats(days);
+  const streaks = computeStreaks(days, today);
+  const week = weeklyStats(days, today);
   const weeks = buildGrid(year, days);
   const fullDaysCount = days.filter((d) => d.commits > 0 && d.workout).length;
-  const todayStr = isoDate(new Date());
-  const dayOfYear = days.findIndex((d) => d.date === todayStr) + 1;
+  const dayOfYear = days.findIndex((d) => d.date === today) + 1;
 
   return (
     <main className="bg-black min-h-dvh text-white">

@@ -17,8 +17,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = posts.find((p) => p.slug === slug);
   if (!post) return {};
   return {
-    title: `${post.title} — Robin Kwee`,
+    title: post.title,
     description: post.excerpt,
+    alternates: { canonical: `/blog/${post.slug}` },
+    openGraph: {
+      type: 'article',
+      title: post.title,
+      description: post.excerpt,
+      url: `/blog/${post.slug}`,
+      publishedTime: post.date || undefined,
+      tags: post.tags,
+    },
   };
 }
 

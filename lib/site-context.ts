@@ -1,8 +1,11 @@
 import 'server-only';
 import { getPostMeta } from './markdown';
 
+// Keep in step with the venture list rendered on the landing page
+// (`app/Landing.tsx`) — Aria answers questions from this.
 const VENTURES = [
-  { name: 'DigitalNuvo', tag: 'AI', url: 'digitalnuvo.com', desc: 'AI automation agency for SEA businesses — agents that replace manual workflows.' },
+  { name: 'PeopleDrivenAI', tag: 'AI', url: 'peopledrivenai.org', desc: 'The AI translation layer for Filipino business.' },
+  { name: 'DigitalNuvo', tag: 'AI × Ecommerce', url: 'digitalnuvo.com', desc: 'AI systems that run your practice — agents that replace manual workflows.' },
   { name: 'PROSMASH', tag: 'Padel', url: 'prosmash.ph', desc: 'Padel club operator with locations in Makati and Alabang, Philippines.' },
   { name: 'Padel League Philippines', tag: 'Padel', url: 'padelph.com', desc: 'Community + competitive layer for padel in the PH — leagues, rankings, tournaments.' },
 ];
@@ -43,8 +46,8 @@ RECENT WRITING (robinkwee.com/blog):
 ${recentBlog || '(no posts yet)'}
 
 THIS WEBSITE (robinkwee.com):
-- Profile page with bio, ventures, social links
+- Landing page with bio, ventures, social links
 - Blog at /blog
 - 365-day activity heatmap at /log (tracks workouts and habits)
-- This call agent at /call`;
+- This call agent at /call, with a self-service booking form on the same page`;
 }

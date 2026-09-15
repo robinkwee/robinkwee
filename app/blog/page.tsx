@@ -1,9 +1,19 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { getPostMeta } from '@/lib/markdown';
 
-export const metadata = {
-  title: 'Writing — Robin Kwee',
+export const metadata: Metadata = {
+  title: 'Writing',
   description: 'Essays on AI, padel, building businesses in Southeast Asia, and systems thinking.',
+  alternates: {
+    canonical: '/blog',
+    types: { 'application/rss+xml': '/blog/rss.xml' },
+  },
+  openGraph: {
+    title: 'Writing — Robin Kwee',
+    description: 'Essays on AI, padel, building businesses in Southeast Asia, and systems thinking.',
+    url: '/blog',
+  },
 };
 
 function formatDate(iso: string) {

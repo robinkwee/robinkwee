@@ -1,33 +1,15 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Robin Kwee",
-  description: "Ecommerce, Padel, Farming, Coding, Systems — Philippines",
+  title: { absolute: 'Robin Kwee' },
+  description: 'Ecommerce, Padel, Farming, Coding, Systems — Philippines',
+  alternates: { canonical: '/old' },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
-    </html>
-  );
+/**
+ * Nested layout for the archived V1 profile. The root layout owns <html>/<body>
+ * and the font variables; this only re-applies V1's night-sky background.
+ */
+export default function LegacyLayout({ children }: { children: React.ReactNode }) {
+  return <div className="legacy-page">{children}</div>;
 }
