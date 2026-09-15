@@ -457,7 +457,7 @@ export default function Landing() {
           </div>
           <div data-reveal>
             <Link href="/call" className="v2-pill">
-              Book a call <small>Aria sets it up · 30 min · Google Meet</small>
+              Book a call <small>Pick a time · 30 min · Google Meet</small>
             </Link>
           </div>
           <div className="v2-socials" data-reveal>

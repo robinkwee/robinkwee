@@ -9,24 +9,25 @@ Production hardening pass. Two of these were site-wide breakages, not polish.
 ### Fixed
 - **Root layout emitted no `<html>` or `<body>`** — `app/layout.tsx` returned a bare `<div>`, so every page shipped malformed HTML with no `lang` attribute, and `/old` rendered a second `<html>` element nested inside the document. The root layout now owns the document; `app/old/layout.tsx` is a plain nested layout.
 - **Tailwind never loaded outside `/old`** — `globals.css` (the Tailwind entry) was only imported by the archived layout, so `/call`, `/log`, `/blog` and `/blog/[slug]` rendered completely unstyled. The import moved to the root layout.
-- **Google Meet link put the two parties in different meetings** — `MEET_LINK` defaulted to `https://meet.google.com/new`, which creates a fresh room for every person who opens it. That URL is now rejected outright; without a configured permanent room the invite promises a link instead of shipping a broken one.
-- **Calendar invites broke on ordinary input** — the `.ics` writer interpolated names and topics without RFC 5545 escaping or line folding, so "Smith, Jane" produced an invite clients silently refused, and a newline could inject arbitrary calendar properties.
-- **Agent replies lost words mid-sentence** — the stream reader split each network chunk on newlines in isolation, dropping any line that straddled a chunk boundary. Stream errors and tool results were ignored entirely, so a failed booking looked identical to a successful one.
+- **Booking only worked if you could talk to it** — the Web Speech API does not exist in Firefox or any non-Safari browser on iOS, where the page sat on "Connecting mic…" with no way to proceed. Booking is now a Calendly embed that works in every browser.
+- **Google Meet link put the two parties in different meetings** — `MEET_LINK` defaulted to `https://meet.google.com/new`, which creates a fresh room for every person who opens it. Calendly now generates a real per-meeting room.
 - **Activity streaks were wrong after a day off** — `computeStreaks` used a sign-flip sentinel that relied on `-0 >= 0` being false. It is true, so a missed day reported the previous run as the current streak, and a broken streak silently resumed.
 - **Log dates drifted by a day** — "day N of the year" and streak boundaries used UTC dates while everything else is quoted in Manila time.
-- **Reminder emails could be scheduled in the past** for calls booked close to their start time.
 - Landing page: the "Prefer the classic?" footer link pointed at itself instead of `/old`; the nav still read "/2" from when the page lived there.
 - Blog and archive page titles were doubling the "— Robin Kwee" suffix.
 
 ### Added
-- **Self-service booking form on `/call`** — always available, no microphone required, with live availability, inline validation and a confirmation card. Booking previously worked only by talking to Aria, which failed outright in Firefox and every non-Safari browser on iOS.
-- **Typed input during the voice call**, a transcript view, and explicit handling for blocked or missing microphones.
-- **`GET`/`POST /api/book`** — availability and booking behind one set of validated rules (`lib/booking/schema.ts`) shared by the form, the API and the agent's tool.
-- **Double-booking and duplicate protection** — slots are claimed before any email is sent and released if the confirmation fails. Supabase-backed when configured (`supabase/migrations/0001_bookings.sql`), per-instance otherwise.
-- **Rate limiting on every public route** (`lib/rate-limit.ts`), backed by Upstash Redis when configured. Booking attempts, successful bookings per IP, and invitations per recipient address are capped separately, so a typo in the form never costs somebody their ability to book.
+- **Calendly booking on `/call`.** Calendly owns availability, the confirmation email, the calendar invite, the Google Meet link, reminders and rescheduling. The scheduling link comes from `NEXT_PUBLIC_CALENDLY_URL` and is validated (`lib/calendly.ts`) — only `https://calendly.com` links are embedded, so a misconfigured variable cannot point the page's iframe at another origin.
+- **The booking page degrades honestly at every step.** A blocked widget — privacy extensions routinely block Calendly — collapses the reserved space and promotes a direct "Open the booking page" button instead of leaving a screen-high hole; no JavaScript gets a plain link; an unset or invalid scheduling link shows an email call-to-action rather than an empty embed.
+- **Rate limiting on every public route** (`lib/rate-limit.ts`), backed by Upstash Redis when configured.
 - Security headers, `sitemap.xml`, `robots.txt`, OpenGraph/Twitter metadata, a custom 404, and route + root error boundaries.
 - `.env.example` documenting every environment variable, and `supabase/` schema notes.
-- `npm run check` (lint + typecheck + tests) and a `test` script; 93 new tests covering slot rules, iCalendar output, booking, streaks, rate limiting and the booking route.
+- `npm run check` (lint + typecheck + tests) and a `test` script; new tests covering scheduling-link validation, embed parameters, streaks, rate limiting and message sanitising.
+
+### Removed
+- **The custom booking system** — `/api/book`, `lib/booking/*` (slot rules, iCalendar writer, booking store, email templates) and the booking form. Calendly does this job, and running both would have meant two calendars that cannot see each other's bookings.
+- **Aria, the voice agent** — `/api/call-agent`, `/api/kokoro` and the phone-call UI on `/call`. Its only purpose was booking.
+- Dependencies no longer needed: `resend`, `msedge-tts`.
 
 ### Security
 - `/api/habits/workout` logged the first six characters of the shared secret and reported whether it was configured in its 401 body. Both removed; the comparison is now constant-time.
@@ -37,7 +38,7 @@ Production hardening pass. Two of these were site-wide breakages, not polish.
 - Client IP is read from the last forwarded hop rather than the first, which a caller controls.
 
 ### Changed
-- Renamed GENAIO venture to PeopleDrivenAI; updated link from `genaio.org` to `peopledrivenai.org` across landing and profile pages, and added it to the AI assistant's context, which still described the old venture list.
+- Renamed GENAIO venture to PeopleDrivenAI; updated link from `genaio.org` to `peopledrivenai.org` across landing and profile pages, and added it to the chat assistant's persona, which still described the old venture list.
 - The landing intro overlay now always clears — on a GSAP failure, and via a failsafe timer — and is hidden entirely when scripting is off. It was a full-screen opaque overlay that only JavaScript could remove.
 - Removed dead duplicates of `ProfilePage.tsx`, `SkyBackground.tsx` and `globals.css` left at `app/` root by the V2 promotion.
 

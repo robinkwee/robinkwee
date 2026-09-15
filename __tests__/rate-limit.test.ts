@@ -73,7 +73,7 @@ describe('rateLimitHeaders', () => {
 
 describe('clientIp', () => {
   const withHeaders = (headers: Record<string, string>) =>
-    new Request('https://robinkwee.com/api/book', { headers });
+    new Request('https://robinkwee.com/api/chat', { headers });
 
   it('prefers x-real-ip, which the platform sets itself', () => {
     expect(clientIp(withHeaders({ 'x-real-ip': '9.9.9.9', 'x-forwarded-for': '1.1.1.1' }))).toBe(

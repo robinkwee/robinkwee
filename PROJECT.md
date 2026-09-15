@@ -6,7 +6,7 @@
 feature, and what's planned. Update rule in `CLAUDE.md`.
 
 **Last updated:** 2026-09-15  
-**Status:** V2 live on `/`; booking system rebuilt and hardened (v0.2.0.0)
+**Status:** V2 live on `/`; layout fixed and booking moved to Calendly (v0.2.0.0)
 
 ---
 
@@ -22,8 +22,9 @@ feature, and what's planned. Update rule in `CLAUDE.md`.
 
 What's actively in flight right now. Update when priorities shift, not just when work lands.
 
-- ✅ **Production hardening (2026-09-15)** — fixed the broken root layout, restored CSS on `/call`, `/log` and `/blog`, rebuilt the booking system end to end, and put rate limits on every public API route.
-- 📋 Next: set `MEET_LINK` to a permanent Google Meet room and apply `supabase/migrations/0001_bookings.sql` — until both are done, invites carry no join link and bookings are not persisted.
+- ✅ **Production hardening (2026-09-15)** — fixed the broken root layout, restored CSS on `/call`, `/log` and `/blog`, and put rate limits on every public API route.
+- ✅ **Booking moved to Calendly (2026-09-15)** — Calendly owns availability, invites, the Meet link, reminders and rescheduling. The custom booking system and the Aria voice agent were removed.
+- 📋 Next: set `NEXT_PUBLIC_CALENDLY_URL` in Vercel and redeploy — until then `/call` shows an email fallback instead of a calendar.
 - 📋 Then: a real Content-Security-Policy (needs nonces via middleware for GSAP's inline styles).
 
 ---
@@ -32,8 +33,8 @@ What's actively in flight right now. Update when priorities shift, not just when
 
 - **Stack:** Next.js 16 (App Router) + React 19, TypeScript, Tailwind CSS 4.
 - **AI:** Claude Haiku via `@ai-sdk/anthropic` + Vercel `ai` SDK for streaming, Node runtime.
-- **Data:** Supabase (`@supabase/supabase-js`) for bookings, activity-log and habits; flat-file markdown for blog posts (`content/posts/`).
-- **Email:** Resend (`resend`) — booking confirmations, ICS invites, scheduled reminders.
+- **Booking:** Calendly, embedded on `/call` via its inline widget. Calendly owns availability, confirmation email, calendar invite, Google Meet link, reminders and rescheduling — the site stores no booking data.
+- **Data:** Supabase (`@supabase/supabase-js`) for workouts behind the activity log; flat-file markdown for blog posts (`content/posts/`).
 - **Rate limiting:** in-process fixed windows, backed by Upstash Redis REST when configured (`lib/rate-limit.ts`).
 - **Hosting:** Vercel.
 - **Repo:** GitHub `robinkwee/robinkwee`.
@@ -57,30 +58,21 @@ What's actively in flight right now. Update when priorities shift, not just when
 │   ├── old/                 Original profile + UI (archived at /old)
 │   ├── blog/                Blog index + dynamic [slug] + rss.xml
 │   ├── log/                 365-day activity heatmap (workouts + habits)
-│   ├── call/                Voice agent + self-service booking form
-│   │   ├── page.tsx         Route + metadata
-│   │   ├── CallExperience.tsx  Phone UI, speech I/O, agent stream
-│   │   └── BookingForm.tsx     Deterministic booking form
+│   ├── call/                Calendly booking page
+│   │   ├── page.tsx         Route, metadata, unconfigured fallback
+│   │   └── CalendlyEmbed.tsx   Inline widget + blocked-script fallback
 │   └── api/
-│       ├── book/            Availability (GET) + booking (POST)
 │       ├── chat/            Claude Haiku streaming chat
-│       ├── call-agent/      Voice call agent + book_call tool
-│       ├── habits/          Habits read/write (Supabase)
-│       └── kokoro/          Text-to-speech (Edge TTS + HF fallback)
+│       └── habits/          Habits read/write (Supabase)
 ├── content/                 Markdown blog posts + `workouts.json` source
 ├── lib/
-│   ├── booking.ts           Booking orchestrator
-│   ├── booking/schema.ts    Slot rules + input validation (shared)
-│   ├── booking/ics.ts       RFC 5545 iCalendar writer
-│   ├── booking/store.ts     Booking persistence + double-booking guard
-│   ├── booking/email.ts     Confirmation + reminder templates
+│   ├── calendly.ts          Scheduling-link validation + embed params
 │   ├── manila.ts            Manila calendar helpers
 │   ├── habits.ts            Habit grid, streaks, weekly stats
 │   ├── rate-limit.ts        Fixed-window limiter (memory / Upstash)
 │   ├── http.ts              Client IP, JSON helpers, message sanitising
-│   └── system-prompt.ts, site-context.ts, markdown.ts,
-│       github-contributions.ts, workouts.ts
-├── supabase/                SQL migrations + schema notes
+│   └── system-prompt.ts, markdown.ts, github-contributions.ts, workouts.ts
+├── supabase/                Schema notes
 ├── public/                  Static assets (headshot, logos, favicons)
 ├── __tests__/               Vitest unit + route tests
 ├── .env.example             Every environment variable, documented
@@ -103,18 +95,12 @@ Status legend: ✅ Done · 🚧 In progress · 📋 Planned
 - ✅ Archived V1 profile at `/old`.
 
 ### Booking (`/call`)
-- ✅ **Self-service booking form** — always available, no microphone required; live availability, inline validation, confirmation card.
-- ✅ **Aria voice agent** — speech in/out, reads the email back before booking, typed input fallback on every turn, transcript view, graceful degradation where the Web Speech API is missing.
-- ✅ **Shared slot rules** (`lib/booking/schema.ts`) — weekdays 09:00–18:00 Manila, half-hour grid, 1-hour lead time, 60-day horizon, 15/30/45/60-minute durations. The form, the API and the agent's tool all validate against the same rules.
-- ✅ **Double-booking + duplicate protection** — slots are claimed before any email goes out and released if the confirmation fails.
-- ✅ **Spec-correct calendar invites** — RFC 5545 escaping and line folding, `method=REQUEST`, 30-minute alarm.
-- ✅ **Abuse limits** — booking attempts, successful bookings per IP, and invitations per recipient address are capped separately.
+- ✅ **Calendly inline embed** — availability, confirmation, calendar invite, Google Meet link, reminders and rescheduling are all Calendly's. Themed to the site's palette via embed parameters.
+- ✅ **Degrades honestly** — a blocked widget (privacy extensions routinely block Calendly) collapses to a direct "Open the booking page" button rather than a screen-high hole; no JavaScript gets a plain link; an unset or invalid `NEXT_PUBLIC_CALENDLY_URL` shows an email call-to-action instead of an empty embed.
+- ✅ **Origin is validated** (`lib/calendly.ts`) — only `https://calendly.com` links are embedded, so a misconfigured variable cannot point the page's iframe somewhere else.
 
 ### APIs
-- ✅ `GET /api/book` — open slots for a Manila date.
-- ✅ `POST /api/book` — validated booking, 201/400/409/429/503.
-- ✅ `POST /api/chat`, `POST /api/call-agent` — rate limited, roles whitelisted, message length capped.
-- ✅ `POST /api/kokoro` — Edge TTS with HF fallback, input capped.
+- ✅ `POST /api/chat` — rate limited, roles whitelisted, message length capped.
 - ✅ `GET /api/habits`, `POST /api/habits/workout` — year bounded; the write path uses a constant-time secret comparison.
 
 ---
@@ -122,19 +108,16 @@ Status legend: ✅ Done · 🚧 In progress · 📋 Planned
 ## Roadmap / Planned Work
 
 - 📋 **Content-Security-Policy** — needs a nonce plumbed through middleware because the landing page relies on GSAP's inline style writes and next/font's inline styles. Other security headers already ship (`next.config.ts`).
-- 📋 **Cancel / reschedule links** — bookings have a stable id and reference; a signed link would let callers change a booking without emailing.
-- 📋 **Real calendar availability** — slots are currently free unless this site booked them. Reading Robin's Google Calendar free/busy would stop clashes with everything booked elsewhere.
 - 📋 **Layer 2: Social-sync widget** — embed a social aggregator (Juicer.io / EmbedSocial) for Instagram + Facebook activity. LinkedIn personal-profile read API is no longer available (removed 2024) — widget only.
 
 ---
 
 ## Known Gaps / Tech Debt
 
-- **`MEET_LINK` is unset** — invites say Robin will send the link rather than carrying one. The old default (`meet.google.com/new`) is explicitly rejected because it opens a different room for each person who clicks it.
-- **Bookings are not persisted until the Supabase migration is applied** — `supabase/migrations/0001_bookings.sql`. Until then double-booking protection is per serverless instance.
+- **`NEXT_PUBLIC_CALENDLY_URL` is unset** — `/call` shows an email call-to-action instead of a calendar until it is set in Vercel. It is inlined at build time, so setting it needs a redeploy.
 - **Rate limits are per-instance without Upstash** — set `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` to share counters.
-- **No Content-Security-Policy** — see Roadmap.
-- **`BOOKING_FROM_EMAIL` defaults to the Resend sandbox sender** — set it to an address on a verified domain or invites will land in spam.
+- **No Content-Security-Policy** — see Roadmap. Note the `/call` embed needs `assets.calendly.com` (script) and `calendly.com` (frame) allowed whenever one is written.
+- **Booking data lives only in Calendly** — deliberate, but it means the site cannot report on or display upcoming calls.
 - **README.md is the default `create-next-app` boilerplate** — PROJECT.md is the real front door.
 
 ---
@@ -144,9 +127,9 @@ Status legend: ✅ Done · 🚧 In progress · 📋 Planned
 - **Local dev:** `npm install && npm run dev` (uses `dotenv-cli` to load `.env.local`; copy `.env.example` to start).
 - **Build / start:** `npm run build && npm start`.
 - **Checks:** `npm run check` (lint + typecheck + tests). Individually: `npm run lint`, `npm run typecheck`, `npm test`.
-- **Database:** apply `supabase/migrations/` — see `supabase/README.md`.
+- **Database:** see `supabase/README.md` (one `workouts` table, used by `/log`).
 - **Hosting:** Vercel — auto-deploy from `main`.
-- **Env vars:** every variable is documented in `.env.example`. The ones production needs are `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `MEET_LINK`, `BOOKING_FROM_EMAIL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+- **Env vars:** every variable is documented in `.env.example`. The ones production needs are `NEXT_PUBLIC_CALENDLY_URL`, `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 
 ---
 
@@ -154,7 +137,7 @@ Status legend: ✅ Done · 🚧 In progress · 📋 Planned
 
 Newest first. One-line entry per change.
 
-- 2026-09-15 — v0.2.0.0: fixed the root layout (no `<html>`/`<body>` was emitted and Tailwind never loaded on `/call`, `/log` or `/blog`); rebuilt booking with a self-service form, shared slot rules, double-booking protection and spec-correct invites; rate limited every public API; removed the unused `/api/avatar-chat` and `/api/tts` proxies; fixed the streak calculation; added security headers, sitemap, robots, 404 and error boundaries.
+- 2026-09-15 — v0.2.0.0: fixed the root layout (no `<html>`/`<body>` was emitted and Tailwind never loaded on `/call`, `/log` or `/blog`); moved booking to Calendly and removed the custom booking system and Aria voice agent; rate limited every public API; removed the unused `/api/avatar-chat` and `/api/tts` proxies; fixed the streak calculation; added security headers, sitemap, robots, 404 and error boundaries.
 - 2026-07-17 — Renamed GENAIO venture to PeopleDrivenAI; link updated to `peopledrivenai.org` across landing + profile.
 - 2026-06-15 — **V2 LIVE** — Swapped v2 landing experience to main (`/`); original profile archived at `/old`; all routes and APIs preserved; build verified.
 - 2026-06-15 — Added `PROJECT.md` (this tracker) and the project-tracking update rule in `CLAUDE.md`. Folded `TODOS.md` into Roadmap and removed it.
