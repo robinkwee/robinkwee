@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { buildCalendlyEmbedUrl, resolveCalendlyUrl, CALL_THEME } from '../lib/calendly';
+import {
+  buildCalendlyEmbedUrl,
+  resolveCalendlyUrl,
+  schedulingUrl,
+  CALL_THEME,
+  DEFAULT_SCHEDULING_URL,
+} from '../lib/calendly';
 
 const VALID = 'https://calendly.com/robinkwee/30min';
 
@@ -90,5 +96,31 @@ describe('buildCalendlyEmbedUrl', () => {
     const twice = buildCalendlyEmbedUrl(once);
     expect(new URL(twice).searchParams.getAll('hide_gdpr_banner')).toEqual(['1']);
     expect(twice).toBe(once);
+  });
+});
+
+describe('schedulingUrl', () => {
+  it('falls back to Robin\'s own link when nothing is configured', () => {
+    expect(schedulingUrl(undefined)).toBe(DEFAULT_SCHEDULING_URL);
+    expect(schedulingUrl('')).toBe(DEFAULT_SCHEDULING_URL);
+    expect(schedulingUrl('   ')).toBe(DEFAULT_SCHEDULING_URL);
+  });
+
+  it('lets a valid environment override win', () => {
+    expect(schedulingUrl('https://calendly.com/robinkwee/15min')).toBe(
+      'https://calendly.com/robinkwee/15min'
+    );
+  });
+
+  it('keeps the page working when the override is malformed', () => {
+    // A typo in an environment variable should not take the booking page down.
+    expect(schedulingUrl('https://evil.example.com/x')).toBe(DEFAULT_SCHEDULING_URL);
+    expect(schedulingUrl('not a url')).toBe(DEFAULT_SCHEDULING_URL);
+    expect(schedulingUrl('https://calendly.com')).toBe(DEFAULT_SCHEDULING_URL);
+  });
+
+  it('ships a default that survives its own validation', () => {
+    // Guards against a typo in the constant silently disabling booking.
+    expect(resolveCalendlyUrl(DEFAULT_SCHEDULING_URL)).toBe(DEFAULT_SCHEDULING_URL);
   });
 });

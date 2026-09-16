@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import CalendlyEmbed from './CalendlyEmbed';
-import { buildCalendlyEmbedUrl, resolveCalendlyUrl } from '@/lib/calendly';
+import { buildCalendlyEmbedUrl, schedulingUrl } from '@/lib/calendly';
 
 const CONTACT_EMAIL = 'robinkwee@gmail.com';
 
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default function CallPage() {
-  const schedulingUrl = resolveCalendlyUrl();
+  const bookingUrl = schedulingUrl();
 
   return (
     <main className="min-h-dvh bg-[#0d0d0d] text-white">
@@ -52,10 +52,10 @@ export default function CallPage() {
           can reschedule from that invite any time.
         </p>
 
-        {schedulingUrl ? (
+        {bookingUrl ? (
           <CalendlyEmbed
-            embedUrl={buildCalendlyEmbedUrl(schedulingUrl)}
-            schedulingUrl={schedulingUrl}
+            embedUrl={buildCalendlyEmbedUrl(bookingUrl)}
+            schedulingUrl={bookingUrl}
           />
         ) : (
           /*

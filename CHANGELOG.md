@@ -17,8 +17,8 @@ Production hardening pass. Two of these were site-wide breakages, not polish.
 - Blog and archive page titles were doubling the "— Robin Kwee" suffix.
 
 ### Added
-- **Calendly booking on `/call`.** Calendly owns availability, the confirmation email, the calendar invite, the Google Meet link, reminders and rescheduling. The scheduling link comes from `NEXT_PUBLIC_CALENDLY_URL` and is validated (`lib/calendly.ts`) — only `https://calendly.com` links are embedded, so a misconfigured variable cannot point the page's iframe at another origin.
-- **The booking page degrades honestly at every step.** A blocked widget — privacy extensions routinely block Calendly — collapses the reserved space and promotes a direct "Open the booking page" button instead of leaving a screen-high hole; no JavaScript gets a plain link; an unset or invalid scheduling link shows an email call-to-action rather than an empty embed.
+- **Calendly booking on `/call`.** Calendly owns availability, the confirmation email, the calendar invite, the Google Meet link, reminders and rescheduling. The scheduling link defaults to `calendly.com/robinkwee/30-minute-meeting` and can be overridden per environment with `NEXT_PUBLIC_CALENDLY_URL`. Either way it is validated (`lib/calendly.ts`) — only `https://calendly.com` links are embedded, so a misconfigured variable cannot point the page's iframe at another origin, and a malformed override falls back to the default instead of breaking booking.
+- **The booking page degrades honestly at every step.** A blocked widget — privacy extensions routinely block Calendly — collapses the reserved space and promotes a direct "Open the booking page" button instead of leaving a screen-high hole; no JavaScript gets a plain link; an unusable scheduling link shows an email call-to-action rather than an empty embed.
 - **Rate limiting on every public route** (`lib/rate-limit.ts`), backed by Upstash Redis when configured.
 - Security headers, `sitemap.xml`, `robots.txt`, OpenGraph/Twitter metadata, a custom 404, and route + root error boundaries.
 - `.env.example` documenting every environment variable, and `supabase/` schema notes.

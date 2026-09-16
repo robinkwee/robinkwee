@@ -24,8 +24,7 @@ What's actively in flight right now. Update when priorities shift, not just when
 
 - ✅ **Production hardening (2026-09-15)** — fixed the broken root layout, restored CSS on `/call`, `/log` and `/blog`, and put rate limits on every public API route.
 - ✅ **Booking moved to Calendly (2026-09-15)** — Calendly owns availability, invites, the Meet link, reminders and rescheduling. The custom booking system and the Aria voice agent were removed.
-- 📋 Next: set `NEXT_PUBLIC_CALENDLY_URL` in Vercel and redeploy — until then `/call` shows an email fallback instead of a calendar.
-- 📋 Then: a real Content-Security-Policy (needs nonces via middleware for GSAP's inline styles).
+- 📋 Next: a real Content-Security-Policy (needs nonces via middleware for GSAP's inline styles).
 
 ---
 
@@ -33,7 +32,7 @@ What's actively in flight right now. Update when priorities shift, not just when
 
 - **Stack:** Next.js 16 (App Router) + React 19, TypeScript, Tailwind CSS 4.
 - **AI:** Claude Haiku via `@ai-sdk/anthropic` + Vercel `ai` SDK for streaming, Node runtime.
-- **Booking:** Calendly, embedded on `/call` via its inline widget. Calendly owns availability, confirmation email, calendar invite, Google Meet link, reminders and rescheduling — the site stores no booking data.
+- **Booking:** Calendly (`calendly.com/robinkwee/30-minute-meeting`), embedded on `/call` via its inline widget. Calendly owns availability, confirmation email, calendar invite, Google Meet link, reminders and rescheduling — the site stores no booking data.
 - **Data:** Supabase (`@supabase/supabase-js`) for workouts behind the activity log; flat-file markdown for blog posts (`content/posts/`).
 - **Rate limiting:** in-process fixed windows, backed by Upstash Redis REST when configured (`lib/rate-limit.ts`).
 - **Hosting:** Vercel.
@@ -96,7 +95,7 @@ Status legend: ✅ Done · 🚧 In progress · 📋 Planned
 
 ### Booking (`/call`)
 - ✅ **Calendly inline embed** — availability, confirmation, calendar invite, Google Meet link, reminders and rescheduling are all Calendly's. Themed to the site's palette via embed parameters.
-- ✅ **Degrades honestly** — a blocked widget (privacy extensions routinely block Calendly) collapses to a direct "Open the booking page" button rather than a screen-high hole; no JavaScript gets a plain link; an unset or invalid `NEXT_PUBLIC_CALENDLY_URL` shows an email call-to-action instead of an empty embed.
+- ✅ **Degrades honestly** — a blocked widget (privacy extensions routinely block Calendly) collapses to a direct "Open the booking page" button rather than a screen-high hole; no JavaScript gets a plain link; a malformed `NEXT_PUBLIC_CALENDLY_URL` override warns and falls back to the default rather than taking the page down.
 - ✅ **Origin is validated** (`lib/calendly.ts`) — only `https://calendly.com` links are embedded, so a misconfigured variable cannot point the page's iframe somewhere else.
 
 ### APIs
@@ -114,7 +113,7 @@ Status legend: ✅ Done · 🚧 In progress · 📋 Planned
 
 ## Known Gaps / Tech Debt
 
-- **`NEXT_PUBLIC_CALENDLY_URL` is unset** — `/call` shows an email call-to-action instead of a calendar until it is set in Vercel. It is inlined at build time, so setting it needs a redeploy.
+- **The Calendly link is a constant in `lib/calendly.ts`** — booking works out of the box, but changing the event type means a code change or a `NEXT_PUBLIC_CALENDLY_URL` override plus a redeploy (`NEXT_PUBLIC_*` is inlined at build time).
 - **Rate limits are per-instance without Upstash** — set `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` to share counters.
 - **No Content-Security-Policy** — see Roadmap. Note the `/call` embed needs `assets.calendly.com` (script) and `calendly.com` (frame) allowed whenever one is written.
 - **Booking data lives only in Calendly** — deliberate, but it means the site cannot report on or display upcoming calls.
@@ -129,7 +128,7 @@ Status legend: ✅ Done · 🚧 In progress · 📋 Planned
 - **Checks:** `npm run check` (lint + typecheck + tests). Individually: `npm run lint`, `npm run typecheck`, `npm test`.
 - **Database:** see `supabase/README.md` (one `workouts` table, used by `/log`).
 - **Hosting:** Vercel — auto-deploy from `main`.
-- **Env vars:** every variable is documented in `.env.example`. The ones production needs are `NEXT_PUBLIC_CALENDLY_URL`, `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+- **Env vars:** every variable is documented in `.env.example`. The ones production needs are `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`; `NEXT_PUBLIC_CALENDLY_URL` is an optional override for the booking link.
 
 ---
 
