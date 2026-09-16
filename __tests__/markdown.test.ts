@@ -42,7 +42,7 @@ describe('getPostMeta()', () => {
         return makeFrontmatter({ title: 'Older Post', date: '2026-01-01', published: true, tags: [], excerpt: '' });
       }
       return makeFrontmatter({ title: 'Newer Post', date: '2026-06-01', published: true, tags: [], excerpt: '' });
-    }) as unknown as typeof fs.readFileSync;
+    });
 
     const { getPostMeta } = await import('../lib/markdown');
     const posts = getPostMeta();
@@ -55,7 +55,7 @@ describe('getPostMeta()', () => {
     mockFs.readdirSync = vi.fn(() => ['2026-01-01-draft.md'] as unknown as fs.Dirent[]);
     mockFs.readFileSync = vi.fn(() =>
       makeFrontmatter({ title: 'Draft', date: '2026-01-01', tags: [], excerpt: '' })
-    ) as unknown as typeof fs.readFileSync;
+    );
 
     const { getPostMeta } = await import('../lib/markdown');
     expect(getPostMeta()).toHaveLength(0);
@@ -66,7 +66,7 @@ describe('getPostMeta()', () => {
     mockFs.readdirSync = vi.fn(() => ['2026-01-01-hidden.md'] as unknown as fs.Dirent[]);
     mockFs.readFileSync = vi.fn(() =>
       makeFrontmatter({ title: 'Hidden', date: '2026-01-01', published: false, tags: [], excerpt: '' })
-    ) as unknown as typeof fs.readFileSync;
+    );
 
     const { getPostMeta } = await import('../lib/markdown');
     expect(getPostMeta()).toHaveLength(0);
@@ -87,7 +87,7 @@ describe('getPostMeta()', () => {
     ] as unknown as fs.Dirent[]);
     mockFs.readFileSync = vi.fn(() =>
       makeFrontmatter({ title: 'Hello', date: '2026-01-01', published: true, tags: [], excerpt: '' })
-    ) as unknown as typeof fs.readFileSync;
+    );
 
     const { getPostMeta } = await import('../lib/markdown');
     expect(() => getPostMeta()).toThrow(/Duplicate blog slug/);
@@ -108,7 +108,7 @@ describe('getPostContent()', () => {
         { title: 'Building Padel', date: '2026-05-26', published: true, tags: [], excerpt: '' },
         '## Hello\n\nSome content.'
       )
-    ) as unknown as typeof fs.readFileSync;
+    );
 
     const { getPostContent } = await import('../lib/markdown');
     const html = await getPostContent('building-padel');

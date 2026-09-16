@@ -132,6 +132,16 @@ html.v2-lock {
   justify-content: center;
 }
 
+/*
+ * Only JavaScript ever removes the preloader, so without scripting it would
+ * sit over the page forever. Never show it in that case.
+ */
+@media (scripting: none) {
+  .v2-preloader {
+    display: none;
+  }
+}
+
 .v2-preloader-name {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-size: 12px;

@@ -2,7 +2,7 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --background: #060a16;
+  --background: #060606;
   --foreground: #ededed;
 }
 
@@ -13,10 +13,59 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  background: var(--background);
+  -webkit-text-size-adjust: 100%;
+}
 
 body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Archived V1 profile (/old) keeps its original night-sky gradient. */
+.legacy-page {
+  min-height: 100dvh;
   background: linear-gradient(180deg, #0a1228 0%, #070b1a 50%, #04050b 100%);
   background-attachment: fixed;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Visible keyboard focus everywhere outside the V2 landing, which styles its own. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #34d399;
+  outline-offset: 2px;
+}
+
+/* Skip link for keyboard and screen-reader users. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 999;
+  padding: 10px 16px;
+  background: #34d399;
+  color: #04130c;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 0 0 8px 0;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

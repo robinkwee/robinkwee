@@ -30,16 +30,18 @@ export function getPostMeta(): PostMeta[] {
         .replace(/^\d{4}-\d{2}-\d{2}-/, '')
         .replace(/\.md$/, '');
       return {
-        slug,
-        title: (data.title as string) ?? '',
-        date: (data.date as string) ?? '',
-        tags: (data.tags as string[]) ?? [],
-        excerpt: (data.excerpt as string) ?? '',
-        _published: data.published === true,
+        published: data.published === true,
+        meta: {
+          slug,
+          title: (data.title as string) ?? '',
+          date: (data.date as string) ?? '',
+          tags: (data.tags as string[]) ?? [],
+          excerpt: (data.excerpt as string) ?? '',
+        },
       };
     })
-    .filter((p) => (p as PostMeta & { _published: boolean })._published)
-    .map(({ _published: _, ...rest }: PostMeta & { _published: boolean }) => rest);
+    .filter((entry) => entry.published)
+    .map((entry) => entry.meta);
 
   // Throw at build time when two filenames produce the same slug
   const seen = new Set<string>();

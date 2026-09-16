@@ -119,6 +119,7 @@ export default function ProfilePage({ recentPosts }: Props) {
 
         {/* Avatar & name */}
         <div className="flex flex-col items-center text-center mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element -- archived V1 page, kept byte-identical to the original */}
           <img
             src="/avatar.jpg"
             alt="Robin Kwee"

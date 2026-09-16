@@ -1,19 +1,17 @@
 import { getGithubContributions } from '@/lib/github-contributions';
 import { getWorkouts } from '@/lib/workouts';
+import { buildHabitDays, normalizeYear, type HabitDay, type WorkoutType } from '@/lib/habits';
+import { json } from '@/lib/http';
 
 export const runtime = 'nodejs';
 export const revalidate = 86400;
 
-export interface HabitDay {
-  date: string;
-  commits: number;
-  workout: boolean;
-  workoutType?: 'weights' | 'padel' | 'other';
-}
+export type { HabitDay };
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const year = parseInt(searchParams.get('year') ?? String(new Date().getFullYear()), 10);
+  // `year` is caller-controlled: without a bound, a value like 99999 built an
+  // invalid date and an unbounded loop.
+  const year = normalizeYear(new URL(req.url).searchParams.get('year'));
 
   const [contributions, workouts] = await Promise.allSettled([
     getGithubContributions(year),
@@ -23,32 +21,18 @@ export async function GET(req: Request) {
   const commitMap = new Map<string, number>();
   if (contributions.status === 'fulfilled') {
     for (const d of contributions.value) commitMap.set(d.date, d.count);
+  } else {
+    console.error('[habits] GitHub contributions failed:', contributions.reason);
   }
 
-  const workoutMap = new Map<string, 'weights' | 'padel' | 'other'>();
+  const workoutMap = new Map<string, WorkoutType>();
   if (workouts.status === 'fulfilled') {
-    for (const w of workouts.value) {
-      const key = w.date.slice(0, 10);
-      workoutMap.set(key, w.type);
-    }
+    for (const w of workouts.value) workoutMap.set(w.date.slice(0, 10), w.type);
+  } else {
+    console.error('[habits] workouts read failed:', workouts.reason);
   }
 
-  // Build full year grid
-  const days: HabitDay[] = [];
-  const start = new Date(`${year}-01-01`);
-  const end = new Date(`${year}-12-31`);
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const date = d.toISOString().slice(0, 10);
-    const workoutType = workoutMap.get(date);
-    days.push({
-      date,
-      commits: commitMap.get(date) ?? 0,
-      workout: workoutMap.has(date),
-      workoutType,
-    });
-  }
-
-  return new Response(JSON.stringify(days), {
-    headers: { 'Content-Type': 'application/json' },
+  return json(buildHabitDays(year, commitMap, workoutMap), {
+    headers: { 'Cache-Control': 'public, max-age=0, s-maxage=86400' },
   });
 }
